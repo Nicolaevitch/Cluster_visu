@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Your local venv folder named "cluster_visu"
+cluster_visu/bin/
+cluster_visu/include/
+cluster_visu/lib/
+cluster_visu/lib64/
+cluster_visu/pyvenv.cfg
+
+# Node / frontend
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
