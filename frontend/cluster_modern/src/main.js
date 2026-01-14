@@ -1,10 +1,96 @@
+function getToken() {
+  return localStorage.getItem("token") || "";
+}
+function setToken(t) {
+  localStorage.setItem("token", t);
+}
+function clearToken() {
+  localStorage.removeItem("token");
+}
+function getUserEmail() {
+  return localStorage.getItem("user_email") || "";
+}
+function setUserEmail(e) {
+  localStorage.setItem("user_email", e);
+}
+
 import "./style.css";
 
 async function apiGet(path) {
-  const r = await fetch(path);
+  const token = getToken();
+  const r = await fetch(path, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
   return r.json();
 }
+async function renderLoginPage() {
+  setApp(`
+    <div class="wrap">
+      <h1>Choisir un utilisateur</h1>
+      <div id="status" class="muted">Chargement...</div>
+
+      <div class="row" style="gap:12px; align-items:flex-end; flex-wrap:wrap; margin-top:10px;">
+        <div>
+          <div><b>Email</b></div>
+          <select id="userSelect" style="min-width:380px; padding:8px;"></select>
+        </div>
+        <button id="btnLogin" style="padding:8px 12px;">Se connecter</button>
+        <button id="btnLogout" style="padding:8px 12px;">Se déconnecter</button>
+      </div>
+
+      <div id="info" style="margin-top:10px;"></div>
+    </div>
+  `);
+
+  const data = await apiGet("/api/auth/users");
+  const items = data.items || [];
+
+  const sel = document.querySelector("#userSelect");
+  sel.innerHTML = items.map(u => `<option value="${htmlEscape(u.email)}">${htmlEscape(u.email)}</option>`).join("");
+
+  document.querySelector("#status").textContent =
+    `Utilisateurs disponibles: ${items.length}`;
+
+  // affiche l'user courant
+  const current = getUserEmail();
+  document.querySelector("#info").innerHTML = current
+    ? `<b>Connecté en tant que :</b> ${htmlEscape(current)}`
+    : `<span class="muted">Pas connecté</span>`;
+
+  document.querySelector("#btnLogin").addEventListener("click", async () => {
+    try {
+      const email = sel.value;
+      const res = await apiPost("/api/auth/login", { email });
+      setToken(res.access_token);
+      setUserEmail(res.user.email);
+      window.location.hash = "#/";
+    } catch (e) {
+      document.querySelector("#status").textContent = String(e);
+    }
+  });
+
+  document.querySelector("#btnLogout").addEventListener("click", () => {
+    clearToken();
+    setUserEmail("");
+    document.querySelector("#info").innerHTML = `<span class="muted">Pas connecté</span>`;
+  });
+}
+
+async function apiPost(path, bodyObj) {
+  const token = getToken();
+  const r = await fetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(bodyObj),
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
 
 function htmlEscape(s) {
   return String(s ?? "")
@@ -366,11 +452,25 @@ async function router() {
   const parts = getRoute();
 
   try {
+    // 1) Page "login" toujours accessible
+    if (parts[0] === "login") {
+      await renderLoginPage();
+      return;
+    }
+
+    // 2) Si aucun utilisateur sélectionné → forcer le login
+    if (!getToken()) {
+      window.location.hash = "#/login";
+      return;
+    }
+
+    // 3) Page principale : liste des clusters
     if (parts.length === 0) {
       await renderClustersPage();
       return;
     }
 
+    // 4) Page détail d’un cluster
     if (parts[0] === "cluster" && parts[1]) {
       const clusterId = Number(parts[1]);
       if (!Number.isFinite(clusterId)) throw new Error("cluster_id invalide");
@@ -378,6 +478,7 @@ async function router() {
       return;
     }
 
+    // 5) Fallback
     window.location.hash = "#/";
   } catch (e) {
     setApp(`

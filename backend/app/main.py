@@ -4,10 +4,13 @@ from fastapi import FastAPI, Depends, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from .auth import router as auth_router
 
 from .db import get_db
 
 app = FastAPI(title="Cluster visu (POC)")
+
+app.include_router(auth_router)
 
 app.add_middleware(
     CORSMiddleware,
