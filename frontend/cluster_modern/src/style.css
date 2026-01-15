@@ -155,3 +155,52 @@ th { background: #f5f5f5; text-align: left; }
   border-top: 2px solid #111;
   background: #f8fafc;
 }
+.ann-block {
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border: 2px solid #111;
+  background: #f8fafc;
+}
+
+.ann-title { margin-bottom: 8px; }
+
+.ann-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.ann-table th, .ann-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  vertical-align: top;
+  word-break: break-word;
+}
+.annot-box{
+  border: 2px solid #111;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.annot-head{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn{
+  border:2px solid #111;
+  background:#fff;
+  padding:8px 12px;
+  cursor:pointer;
+}
+.btn.small{ padding:6px 10px; font-size:0.9rem; }
+
+.pill{
+  display:inline-block;
+  padding:2px 8px;
+  border:2px solid #111;
+  margin-left:6px;
+}

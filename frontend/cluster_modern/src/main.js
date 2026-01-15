@@ -91,6 +91,131 @@ async function apiPost(path, bodyObj) {
   return r.json();
 }
 
+// ===========================
+// ✅ Edition d'annotation
+// ===========================
+const ANNOT_STATUS_OPTIONS = ["UNREVIEWED", "OUI", "NON", "DOUTEUX", "DISCARDED"];
+
+function renderAnnotEditor(alignmentId, label, items) {
+  const myEmail = (getUserEmail() || "").toLowerCase();
+  const my = (items || []).find(x => (x.email || "").toLowerCase() === myEmail);
+
+  const currentStatus = my?.status || "UNREVIEWED";
+  const currentComment = my?.comment || "";
+
+  return `
+    <div class="annot-box" data-aid="${htmlEscape(alignmentId)}" data-label="${htmlEscape(label)}">
+      <div class="annot-head">
+        <div class="muted small">
+          <b>Mon statut :</b>
+          <span class="pill">${htmlEscape(currentStatus)}</span>
+          ${my?.created_at ? `<span class="muted small">— ${htmlEscape(my.created_at)}</span>` : ""}
+        </div>
+        <button class="btn small js-toggle-annot" type="button">Modifier statut d'annotation</button>
+      </div>
+
+      <div class="annot-editor" style="display:none; margin-top:10px;">
+        <div class="row" style="gap:12px; align-items:flex-end; flex-wrap:wrap;">
+          <div>
+            <div class="muted small"><b>Status</b></div>
+            <select class="js-annot-status" style="min-width:220px; padding:8px;">
+              ${ANNOT_STATUS_OPTIONS.map(s => {
+                const sel = s === currentStatus ? "selected" : "";
+                return `<option value="${s}" ${sel}>${s}</option>`;
+              }).join("")}
+            </select>
+          </div>
+
+          <div style="flex:1; min-width:260px;">
+            <div class="muted small"><b>Commentaire</b></div>
+            <input class="js-annot-comment" type="text" style="width:100%; padding:8px;"
+                   value="${htmlEscape(currentComment)}"
+                   placeholder="(optionnel)" />
+          </div>
+
+          <button class="btn js-save-annot" type="button">Enregistrer</button>
+        </div>
+
+        <div class="js-annot-msg muted small" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  `;
+}
+
+function attachAnnotEditors() {
+  // Anti double-bind : on marque les boutons déjà bindés
+  const markOnce = (el, key) => {
+    const k = `__bound_${key}`;
+    if (el[k]) return false;
+    el[k] = true;
+    return true;
+  };
+
+  // Toggle open/close
+  document.querySelectorAll(".js-toggle-annot").forEach((btn) => {
+    if (!markOnce(btn, "toggle")) return;
+
+    btn.addEventListener("click", () => {
+      const box = btn.closest(".annot-box");
+      if (!box) return;
+      const editor = box.querySelector(".annot-editor");
+      if (!editor) return;
+
+      editor.style.display = editor.style.display === "none" ? "block" : "none";
+    });
+  });
+
+  // Save
+  document.querySelectorAll(".js-save-annot").forEach((btn) => {
+    if (!markOnce(btn, "save")) return;
+
+    btn.addEventListener("click", async () => {
+      const box = btn.closest(".annot-box");
+      if (!box) return;
+
+      const aid = Number(box.getAttribute("data-aid") || 0);
+      const label = box.getAttribute("data-label") || "";
+      const status = box.querySelector(".js-annot-status")?.value || "UNREVIEWED";
+      const comment = box.querySelector(".js-annot-comment")?.value || "";
+      const msg = box.querySelector(".js-annot-msg");
+
+      if (!aid) {
+        if (msg) msg.textContent = "Erreur: alignment_id manquant.";
+        return;
+      }
+
+      if (msg) msg.textContent = "Enregistrement...";
+      btn.disabled = true;
+
+      try {
+        await apiPost(`/api/alignments/${aid}/annotate`, { status, comment });
+
+        // Refresh latest pour ré-afficher
+        const latest = await fetchAlignmentAnnotationsLatest(aid);
+
+        // Rafraîchir le tableau des annotations (bloc ann-block)
+        const annBlock = box.closest(".align-body")?.querySelector(".ann-block");
+        if (annBlock) {
+          annBlock.innerHTML = `
+            <div class="ann-title"><b>Annotations (latest par user)</b></div>
+            ${renderAnnotationsTable(latest.items || [])}
+          `;
+        }
+
+        // Remplacer l'éditeur par une version recalculée (mon statut / commentaire)
+        box.outerHTML = renderAnnotEditor(aid, label, latest.items || []);
+
+        // Re-bind sur le nouveau DOM
+        attachAnnotEditors();
+      } catch (e) {
+        if (msg) msg.textContent = String(e);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
 
 function htmlEscape(s) {
   return String(s ?? "")
@@ -123,6 +248,10 @@ const TRIO_PRESETS = [
   { label: "oui-non-unreviewed", value: "oui,non,unreviewed" },
   { label: "oui-oui-oui", value: "oui,oui,oui" },
   { label: "non-non-non", value: "non,non,non" },
+  { label: "douteux-douteux-douteux", value: "douteux,douteux,douteux" },
+  { label: "douteux-non-non", value: "douteux,non,non" },
+  { label: "douteux-unreviewed-unreviewed", value: "douteux,unreviewed,unreviewed" },
+  { label: "douteux-discarded-discarded", value: "douteux,discarded,discarded" },
 ];
 
 function getSelectedTrio() {
@@ -143,6 +272,16 @@ async function renderClustersPage() {
   setApp(`
     <div class="wrap">
       <h1>Clusters</h1>
+
+      <!-- 🔐 Bandeau utilisateur -->
+      <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+        <div class="muted small">
+          Connecté : <b>${htmlEscape(getUserEmail() || "—")}</b>
+        </div>
+        <div>
+          <a href="#/login">Changer d’utilisateur</a>
+        </div>
+      </div>
 
       <div class="row">
         <label for="trioSelect"><b>Filtre trio annotation</b></label>
@@ -206,6 +345,7 @@ async function renderClustersPage() {
 
   document.querySelector("#table").innerHTML = html;
 }
+
 
 /* =========================================================
    ✅ PAGE 2 (NEW): bandeau résumé en tableau (haut de page)
@@ -298,15 +438,19 @@ function renderPassageTable(p, meta, titleLabel) {
   `;
 }
 
-function renderAlignmentSection(label, a, metaByPassageId, vertexByPassageId) {
+function renderAlignmentSection(label, a, metaByPassageId, vertexByPassageId, annItems) {
   const src = a?.source || {};
   const tgt = a?.target || {};
 
   const srcMeta = metaByPassageId.get(src.passage_id) || null;
   const tgtMeta = metaByPassageId.get(tgt.passage_id) || null;
 
-  const srcV = vertexByPassageId.get(src.passage_id) || "Source";
-  const tgtV = vertexByPassageId.get(tgt.passage_id) || "Target";
+  const srcV = vertexByPassageId.get(src.passage_id) || "A";
+  const tgtV = vertexByPassageId.get(tgt.passage_id) || "B";
+
+  const editor = a?.alignment_id
+    ? renderAnnotEditor(a.alignment_id, label, annItems || [])
+    : "";
 
   return `
     <details class="align-details" open>
@@ -316,7 +460,14 @@ function renderAlignmentSection(label, a, metaByPassageId, vertexByPassageId) {
       </summary>
 
       <div class="align-body">
-        <div class="stack-passages">
+        ${editor}
+
+        <div class="ann-block" style="margin-top:12px;">
+          <div class="ann-title"><b>Annotations (latest par user)</b></div>
+          ${renderAnnotationsTable(annItems)}
+        </div>
+
+        <div class="stack-passages" style="margin-top:12px;">
           ${renderPassageTable(src, srcMeta, `Passage ${srcV}`)}
           ${renderPassageTable(tgt, tgtMeta, `Passage ${tgtV}`)}
         </div>
@@ -326,10 +477,46 @@ function renderAlignmentSection(label, a, metaByPassageId, vertexByPassageId) {
 }
 
 
+
 async function fetchPassageMeta(passageId) {
   if (!passageId) return null;
   return apiGet(`/api/passages/${passageId}/meta`);
 }
+
+async function fetchAlignmentAnnotationsLatest(alignmentId) {
+  if (!alignmentId) return { items: [] };
+  return apiGet(`/api/alignments/${alignmentId}/annotations/latest`);
+}
+
+function renderAnnotationsTable(items) {
+  if (!items || items.length === 0) {
+    return `<div class="muted small">Aucune annotation.</div>`;
+  }
+
+  return `
+    <table class="ann-table">
+      <thead>
+        <tr>
+          <th>Utilisateur</th>
+          <th>Status</th>
+          <th>Commentaire</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map(a => `
+          <tr>
+            <td>${htmlEscape(a.email ?? "")}</td>
+            <td><b>${htmlEscape(a.status ?? "")}</b></td>
+            <td>${htmlEscape(a.comment ?? "")}</td>
+            <td class="muted small">${htmlEscape(a.created_at ?? "")}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
 
 function buildVertexLabels(head, metaByPassageId) {
   // On va construire une map: passage_id -> "A" | "B" | "C"
@@ -384,6 +571,16 @@ async function renderClusterDetailPage(clusterId) {
 
       <h1>Cluster ${htmlEscape(clusterId)}</h1>
 
+      <!-- 🔐 Bandeau utilisateur -->
+      <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+        <div class="muted small">
+          Connecté : <b>${htmlEscape(getUserEmail() || "—")}</b>
+        </div>
+        <div>
+          <a href="#/login">Changer d’utilisateur</a>
+        </div>
+      </div>
+
       <div id="status">Chargement...</div>
       <div id="topSummary"></div>
 
@@ -403,10 +600,10 @@ async function renderClusterDetailPage(clusterId) {
   }
   document.querySelector("#topSummary").innerHTML = renderClusterTopSummaryTable(summary);
 
-  // ✅ 2) Charger head_triangle
+  // 2) Charger head_triangle
   const head = await apiGet(`/api/clusters/${clusterId}/head_triangle`);
 
-  // ✅ 3) Récupérer les 6 passage_id (AB/AC/BC * source/target)
+  // 3) Récupérer les 6 passage_id (AB/AC/BC * source/target)
   const ids = [
     head?.alignments?.ab?.source?.passage_id,
     head?.alignments?.ab?.target?.passage_id,
@@ -416,37 +613,49 @@ async function renderClusterDetailPage(clusterId) {
     head?.alignments?.bc?.target?.passage_id,
   ].filter(Boolean);
 
-  // enlever doublons (au cas où)
   const uniqueIds = [...new Set(ids)];
 
-  // ✅ 4) Charger les metas en parallèle
+  // 4) Charger les metas passages en parallèle
   const metas = await Promise.all(
     uniqueIds.map(async (pid) => {
       try {
         return await fetchPassageMeta(pid);
       } catch {
-        return { passage_id: pid }; // fallback si /meta échoue
+        return { passage_id: pid };
       }
     })
   );
 
-  // ✅ 5) Index par passage_id
-  const metaByPassageId = new Map(metas.map(m => [m.passage_id, m]));
+  // 5) Index meta par passage_id + labels A/B/C
+  const metaByPassageId = new Map(metas.map((m) => [m.passage_id, m]));
   const vertexByPassageId = buildVertexLabels(head, metaByPassageId);
 
-
-  // ✅ 6) Render du bloc “Triangle de tête du cluster”
+  // 6) Alignements AB / AC / BC
   const ab = head?.alignments?.ab;
   const ac = head?.alignments?.ac;
   const bc = head?.alignments?.bc;
 
+  // 6bis) Charger les annotations (latest par user) pour AB/AC/BC
+  const [abAnn, acAnn, bcAnn] = await Promise.all([
+    fetchAlignmentAnnotationsLatest(ab?.alignment_id),
+    fetchAlignmentAnnotationsLatest(ac?.alignment_id),
+    fetchAlignmentAnnotationsLatest(bc?.alignment_id),
+  ]);
+
+  // 7) Rendu HTML
   document.querySelector("#content").innerHTML = `
     <h2 class="big-title">Triangle de tête du cluster</h2>
-    ${renderAlignmentSection("ab", ab, metaByPassageId, vertexByPassageId)}
-    ${renderAlignmentSection("ac", ac, metaByPassageId, vertexByPassageId)}
-    ${renderAlignmentSection("bc", bc, metaByPassageId, vertexByPassageId)}
+
+    ${renderAlignmentSection("ab", ab, metaByPassageId, vertexByPassageId, abAnn?.items || [])}
+    ${renderAlignmentSection("ac", ac, metaByPassageId, vertexByPassageId, acAnn?.items || [])}
+    ${renderAlignmentSection("bc", bc, metaByPassageId, vertexByPassageId, bcAnn?.items || [])}
   `;
+
+  // ✅ 8) Bind des boutons/inputs UNE FOIS que le DOM existe
+  attachAnnotEditors();
 }
+
+
 
 async function router() {
   const parts = getRoute();
@@ -458,9 +667,13 @@ async function router() {
       return;
     }
 
-    // 2) Si aucun utilisateur sélectionné → forcer le login
+    // 2) Si pas de token => on nettoie l'état local et on force le login
     if (!getToken()) {
-      window.location.hash = "#/login";
+      clearToken();
+      setUserEmail(""); // ou localStorage.removeItem("user_email")
+      if (window.location.hash !== "#/login") {
+        window.location.hash = "#/login";
+      }
       return;
     }
 
