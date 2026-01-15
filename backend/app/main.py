@@ -32,6 +32,10 @@ class AlignmentAnnotationIn(BaseModel):
     status: str
     comment: Optional[str] = None
 
+class ClusterPropagateIn(BaseModel):
+    status: str
+    comment: Optional[str] = None
+
 def normalize_trio(trio: Optional[str]) -> Optional[str]:
     if trio is None or trio.strip() == "":
         return None
@@ -564,3 +568,109 @@ ORDER BY triangles_count DESC, trio_sorted ASC
     """)
     rows = db.execute(sql, {"cid": cluster_id}).mappings().all()
     return {"cluster_id": cluster_id, "items": list(rows)}
+
+@app.post("/clusters/{cluster_id}/propagate")
+def propagate_cluster_annotations(
+    cluster_id: int,
+    data: ClusterPropagateIn,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user_dep),
+):
+    # 1) Validation du status
+    status = (data.status or "").strip().upper()
+    if status not in ALLOWED_ANNOT_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"status invalide. Autorisés: {sorted(ALLOWED_ANNOT_STATUSES)}",
+        )
+
+    # 2) Vérifier que le cluster existe
+    exists = db.execute(
+        text("SELECT 1 FROM cluster_meta WHERE cluster_id = :cid"),
+        {"cid": cluster_id},
+    ).scalar()
+    if not exists:
+        raise HTTPException(status_code=404, detail="cluster_id introuvable")
+
+    # 3) Mass insert : tous les alignements distincts du cluster (AB/AC/BC)
+    #    -> 1 seule requête, très rapide si index triangles_* existent
+    res = db.execute(
+        text("""
+WITH alns AS (
+  SELECT DISTINCT unnest(ARRAY[
+    t.alignment_ab_id,
+    t.alignment_ac_id,
+    t.alignment_bc_id
+  ]) AS alignment_id
+  FROM triangles t
+  WHERE t.cluster_id = :cid
+)
+INSERT INTO public.annotations (alignment_id, user_id, status, comment, created_at, updated_at)
+SELECT
+  a.alignment_id,
+  :uid,
+  :status,
+  :comment,
+  NOW(),
+  NOW()
+FROM alns a
+RETURNING alignment_id
+        """),
+        {
+            "cid": cluster_id,
+            "uid": user["user_id"],
+            "status": status,
+            "comment": data.comment,
+        },
+    )
+    # compter combien d'alignements ont été annotés
+    inserted_alignment_ids = [r[0] for r in res.fetchall()]
+    n_inserted = len(inserted_alignment_ids)
+
+    # 4) Si ce cluster a bien un head_triangle (normalement oui), on met à jour cluster_meta head_*
+    #    On force AB/AC/BC à ce status/comment (puis on recalc trio_sorted depuis cluster_meta)
+    db.execute(
+        text("""
+UPDATE cluster_meta
+SET
+  head_ab_status = :st,
+  head_ab_comment = :cm,
+  head_ab_created_at = NOW(),
+
+  head_ac_status = :st,
+  head_ac_comment = :cm,
+  head_ac_created_at = NOW(),
+
+  head_bc_status = :st,
+  head_bc_comment = :cm,
+  head_bc_created_at = NOW(),
+
+  trio_sorted = upper(
+    array_to_string(
+      (
+        SELECT array_agg(s ORDER BY s)
+        FROM unnest(ARRAY[
+          COALESCE(:st, 'UNREVIEWED'),
+          COALESCE(:st, 'UNREVIEWED'),
+          COALESCE(:st, 'UNREVIEWED')
+        ]) s
+      ),
+      '-'
+    )
+  ),
+  head_trio_computed_at = NOW()
+WHERE cluster_id = :cid
+        """),
+        {"cid": cluster_id, "st": status, "cm": data.comment},
+    )
+
+    db.commit()
+
+    return {
+        "ok": True,
+        "cluster_id": cluster_id,
+        "user": {"user_id": user["user_id"], "email": user["email"]},
+        "saved": {"status": status, "comment": data.comment},
+        "n_alignments_annotated": n_inserted,
+        "cluster_meta_updated": True,
+    }

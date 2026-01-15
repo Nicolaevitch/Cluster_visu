@@ -504,6 +504,115 @@ async function fetchClusterTrioDistribution(clusterId) {
   return apiGet(`/api/clusters/${clusterId}/trio_distribution`);
 }
 
+function renderPropagateBlock() {
+  return `
+    <details class="prop-details" open style="margin-top:10px;">
+      <summary><b>can_propagate (propager une annotation)</b></summary>
+
+      <div class="row" style="gap:12px; align-items:flex-end; flex-wrap:wrap; margin-top:10px;">
+        <div>
+          <div class="muted small"><b>Status à appliquer au cluster</b></div>
+          <select id="propStatus" style="min-width:220px; padding:8px;">
+            ${ANNOT_STATUS_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join("")}
+          </select>
+        </div>
+
+        <div style="flex:1; min-width:260px;">
+          <div class="muted small"><b>Commentaire</b></div>
+          <input id="propComment" type="text" style="width:100%; padding:8px;"
+                 placeholder="(optionnel)" />
+        </div>
+
+        <button class="btn" id="btnPropagate" type="button">
+          Propager à tous les alignements du cluster
+        </button>
+      </div>
+
+      <div id="propMsg" class="muted small" style="margin-top:8px;"></div>
+    </details>
+  `;
+}
+
+function attachPropagateCluster() {
+  const btn = document.querySelector("#btnPropagate");
+  if (!btn) return;
+
+  // anti double-bind
+  if (btn.__bound_propagate) return;
+  btn.__bound_propagate = true;
+
+  btn.addEventListener("click", async () => {
+    const clusterId = getCurrentClusterIdFromDOM();
+    const status = document.querySelector("#propStatus")?.value || "UNREVIEWED";
+    const comment = document.querySelector("#propComment")?.value || "";
+    const msg = document.querySelector("#propMsg");
+
+    if (!clusterId) {
+      if (msg) msg.textContent = "Erreur: cluster_id introuvable dans la page.";
+      return;
+    }
+
+    if (msg) msg.textContent = "Propagation en cours...";
+    btn.disabled = true;
+
+    try {
+      // ✅ 1) appel backend
+      const res = await apiPost(`/api/clusters/${clusterId}/propagate`, { status, comment });
+
+      if (msg) msg.textContent = `OK. ${res.n_alignments_annotated || 0} alignements annotés. Rafraîchissement...`;
+
+      // ✅ 2) refresh distribution
+      try {
+        const dist = await fetchClusterTrioDistribution(clusterId);
+        const trioDistEl = document.querySelector("#trioDist");
+        if (trioDistEl) {
+          trioDistEl.innerHTML = renderTrioDistributionBlock(dist.items || []);
+        }
+      } catch {
+        // ne bloque pas si ça échoue
+      }
+
+      // ✅ 3) refresh head (AB/AC/BC) : on récupère les alignment_ids visibles dans la page
+      const aids = [...new Set(
+        Array.from(document.querySelectorAll(".annot-box"))
+          .map(el => Number(el.getAttribute("data-aid") || 0))
+          .filter(Boolean)
+      )];
+
+      for (const aid of aids) {
+        const latest = await fetchAlignmentAnnotationsLatest(aid);
+
+        // Update table annotations visible (ann-block)
+        const box = document.querySelector(`.annot-box[data-aid="${aid}"]`);
+        const label = box?.getAttribute("data-label") || "";
+
+        const annBlock = box?.closest(".align-body")?.querySelector(".ann-block");
+        if (annBlock) {
+          annBlock.innerHTML = `
+            <div class="ann-title"><b>Annotations (latest par user)</b></div>
+            ${renderAnnotationsTable(latest.items || [])}
+          `;
+        }
+
+        // Replace editor to show "Mon statut" mis à jour
+        if (box) {
+          box.outerHTML = renderAnnotEditor(aid, label, latest.items || []);
+        }
+      }
+
+      // re-bind des éditeurs (puisque DOM remplacé)
+      attachAnnotEditors();
+
+      if (msg) msg.textContent = `Propagation terminée ✅ (${res.n_alignments_annotated || 0} alignements).`;
+
+    } catch (e) {
+      if (msg) msg.textContent = String(e);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
 function renderTrioDistributionBlock(items) {
   if (!items || items.length === 0) {
     return `
@@ -661,23 +770,27 @@ async function renderClusterDetailPage(clusterId) {
   }
   document.querySelector("#topSummary").innerHTML = renderClusterTopSummaryTable(summary);
 
-  // 🔽 Répartition des trios - à afficher SOUS le summary
+  // 🔽 Répartition des trios + bloc can_propagate (sous le summary)
   try {
     const dist = await fetchClusterTrioDistribution(clusterId);
 
     // garde-fou anti-doublon
     document.querySelector("#trioDist")?.remove();
-
-    document.querySelector("#topSummary").insertAdjacentHTML(
-      "afterend", // ✅ ICI: sous le summary (au lieu de beforebegin)
-      `<div id="trioDist">${renderTrioDistributionBlock(dist.items || [])}</div>`
-    );
-  } catch (e) {
-    document.querySelector("#trioDist")?.remove();
+    document.querySelector("#propagateBox")?.remove();
 
     document.querySelector("#topSummary").insertAdjacentHTML(
       "afterend",
-      `<div id="trioDist">${renderTrioDistributionBlock([])}</div>`
+      `<div id="trioDist">${renderTrioDistributionBlock(dist.items || [])}</div>
+       <div id="propagateBox">${renderPropagateBlock()}</div>`
+    );
+  } catch (e) {
+    document.querySelector("#trioDist")?.remove();
+    document.querySelector("#propagateBox")?.remove();
+
+    document.querySelector("#topSummary").insertAdjacentHTML(
+      "afterend",
+      `<div id="trioDist">${renderTrioDistributionBlock([])}</div>
+       <div id="propagateBox">${renderPropagateBlock()}</div>`
     );
   }
 
@@ -734,7 +847,9 @@ async function renderClusterDetailPage(clusterId) {
 
   // ✅ 8) Bind des boutons/inputs UNE FOIS que le DOM existe
   attachAnnotEditors();
+  attachPropagateCluster();
 }
+
 
 
 async function router() {
