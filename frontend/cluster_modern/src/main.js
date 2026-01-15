@@ -207,6 +207,21 @@ function attachAnnotEditors() {
 
         // Re-bind sur le nouveau DOM
         attachAnnotEditors();
+
+        // 🔄 NEW: Rafraîchir le bloc "Répartition des trios"
+        const clusterId = getCurrentClusterIdFromDOM();
+        if (clusterId) {
+          try {
+            const dist = await fetchClusterTrioDistribution(clusterId);
+            const trioDistEl = document.querySelector("#trioDist");
+            if (trioDistEl) {
+              trioDistEl.innerHTML = renderTrioDistributionBlock(dist.items || []);
+            }
+          } catch {
+            // on ne bloque pas l'UX si ça échoue
+          }
+        }
+
       } catch (e) {
         if (msg) msg.textContent = String(e);
       } finally {
@@ -235,6 +250,14 @@ function getRoute() {
   const parts = h.replace(/^#\/?/, "").split("/").filter(Boolean);
   return parts;
 }
+
+function getCurrentClusterIdFromDOM() {
+  const el = document.querySelector("#clusterPage");
+  const v = el?.getAttribute("data-cluster-id");
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 
 /**
  * Menus prédéfinis (B2)
@@ -476,6 +499,44 @@ function renderAlignmentSection(label, a, metaByPassageId, vertexByPassageId, an
   `;
 }
 
+async function fetchClusterTrioDistribution(clusterId) {
+  if (!clusterId) return { items: [] };
+  return apiGet(`/api/clusters/${clusterId}/trio_distribution`);
+}
+
+function renderTrioDistributionBlock(items) {
+  if (!items || items.length === 0) {
+    return `
+      <details class="dist-details">
+        <summary><b>Répartition des trios (triangles)</b></summary>
+        <div class="muted small" style="margin-top:8px;">Aucune donnée.</div>
+      </details>
+    `;
+  }
+
+  return `
+    <details class="dist-details" open>
+      <summary><b>Répartition des trios (triangles)</b></summary>
+
+      <table class="dist-table" style="margin-top:10px;">
+        <thead>
+          <tr>
+            <th>trio_sorted</th>
+            <th>nb triangles</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(r => `
+            <tr>
+              <td><b>${htmlEscape(r.trio_sorted)}</b></td>
+              <td>${htmlEscape(r.triangles_count)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </details>
+  `;
+}
 
 
 async function fetchPassageMeta(passageId) {
@@ -564,7 +625,7 @@ function buildVertexLabels(head, metaByPassageId) {
 
 async function renderClusterDetailPage(clusterId) {
   setApp(`
-    <div class="wrap">
+    <div class="wrap" id="clusterPage" data-cluster-id="${htmlEscape(clusterId)}">
       <div style="margin-bottom:12px;">
         <a href="#/">&larr; Retour</a>
       </div>
@@ -599,6 +660,26 @@ async function renderClusterDetailPage(clusterId) {
       "Résumé indisponible (endpoint /summary non présent). Affichage partiel.";
   }
   document.querySelector("#topSummary").innerHTML = renderClusterTopSummaryTable(summary);
+
+  // 🔽 Répartition des trios - à afficher SOUS le summary
+  try {
+    const dist = await fetchClusterTrioDistribution(clusterId);
+
+    // garde-fou anti-doublon
+    document.querySelector("#trioDist")?.remove();
+
+    document.querySelector("#topSummary").insertAdjacentHTML(
+      "afterend", // ✅ ICI: sous le summary (au lieu de beforebegin)
+      `<div id="trioDist">${renderTrioDistributionBlock(dist.items || [])}</div>`
+    );
+  } catch (e) {
+    document.querySelector("#trioDist")?.remove();
+
+    document.querySelector("#topSummary").insertAdjacentHTML(
+      "afterend",
+      `<div id="trioDist">${renderTrioDistributionBlock([])}</div>`
+    );
+  }
 
   // 2) Charger head_triangle
   const head = await apiGet(`/api/clusters/${clusterId}/head_triangle`);
@@ -654,7 +735,6 @@ async function renderClusterDetailPage(clusterId) {
   // ✅ 8) Bind des boutons/inputs UNE FOIS que le DOM existe
   attachAnnotEditors();
 }
-
 
 
 async function router() {
