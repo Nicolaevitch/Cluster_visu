@@ -513,3 +513,54 @@ def annotate_alignment(
         "saved": {"status": status, "comment": data.comment},
         "cluster_recomputed": bool(head_info),
     }
+
+@app.get("/clusters/{cluster_id}/trio_distribution")
+def cluster_trio_distribution(cluster_id: int, db: Session = Depends(get_db)):
+    sql = text("""
+WITH tri AS (
+  SELECT id_triangle, alignment_ab_id AS ab, alignment_ac_id AS ac, alignment_bc_id AS bc
+  FROM triangles
+  WHERE cluster_id = :cid
+),
+alns AS (
+  SELECT ab AS alignment_id FROM tri
+  UNION
+  SELECT ac FROM tri
+  UNION
+  SELECT bc FROM tri
+),
+latest AS (
+  SELECT DISTINCT ON (a.alignment_id)
+    a.alignment_id,
+    upper(a.status::text) AS status
+  FROM annotations a
+  JOIN alns x ON x.alignment_id = a.alignment_id
+  ORDER BY a.alignment_id, a.updated_at DESC, a.created_at DESC, a.annotation_id DESC
+),
+per_triangle AS (
+  SELECT
+    t.id_triangle,
+    COALESCE((SELECT status FROM latest WHERE alignment_id = t.ab), 'UNREVIEWED') AS ab_status,
+    COALESCE((SELECT status FROM latest WHERE alignment_id = t.ac), 'UNREVIEWED') AS ac_status,
+    COALESCE((SELECT status FROM latest WHERE alignment_id = t.bc), 'UNREVIEWED') AS bc_status
+  FROM tri t
+),
+tri_trio AS (
+  SELECT
+    id_triangle,
+    upper(
+      array_to_string(
+        (SELECT array_agg(s ORDER BY s)
+         FROM unnest(ARRAY[ab_status, ac_status, bc_status]) s),
+        '-'
+      )
+    ) AS trio_sorted
+  FROM per_triangle
+)
+SELECT trio_sorted, COUNT(*)::int AS triangles_count
+FROM tri_trio
+GROUP BY trio_sorted
+ORDER BY triangles_count DESC, trio_sorted ASC
+    """)
+    rows = db.execute(sql, {"cid": cluster_id}).mappings().all()
+    return {"cluster_id": cluster_id, "items": list(rows)}
