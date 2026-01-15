@@ -6,6 +6,10 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from .auth import router as auth_router
 
+from pydantic import BaseModel
+from .auth import get_current_user_dep
+
+
 from .db import get_db
 
 app = FastAPI(title="Cluster visu (POC)")
@@ -20,8 +24,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ALLOWED_STATUSES = {"discarded", "oui", "non", "unreviewed"}
+ALLOWED_STATUSES = {"discarded", "oui", "non", "unreviewed","douteux"}
 
+ALLOWED_ANNOT_STATUSES = {"OUI", "NON", "UNREVIEWED", "DISCARDED", "DOUTEUX"}
+
+class AlignmentAnnotationIn(BaseModel):
+    status: str
+    comment: Optional[str] = None
 
 def normalize_trio(trio: Optional[str]) -> Optional[str]:
     if trio is None or trio.strip() == "":
@@ -110,17 +119,15 @@ def cluster_triangles(
             alignment_ab_id,
             alignment_bc_id,
             alignment_ac_id,
-            ab_annotation_status,
-            bc_annotation_status,
-            ac_annotation_status,
-            ab_annotation_comment,
-            bc_annotation_comment,
-            ac_annotation_comment
+            old_alignment_concatenated,
+            created_at,
+            updated_at
         FROM triangles
         WHERE cluster_id = :cluster_id
         ORDER BY id_triangle ASC
         LIMIT :limit OFFSET :offset
     """)
+
     rows = db.execute(sql, {"cluster_id": cluster_id, "limit": limit, "offset": offset}).mappings().all()
     return {"cluster_id": cluster_id, "limit": limit, "offset": offset, "items": list(rows)}
 
@@ -355,3 +362,154 @@ GROUP BY p.passage_id, p.text_id, t.title, t.filename, t.first_publication_date,
     if not row:
         raise HTTPException(status_code=404, detail="passage_id not found")
     return dict(row)
+
+@app.get("/alignments/{alignment_id}/annotations/latest")
+def alignment_annotations_latest(alignment_id: int, db: Session = Depends(get_db)):
+    sql = text("""
+SELECT DISTINCT ON (a.user_id)
+  a.annotation_id,
+  a.alignment_id,
+  a.user_id,
+  u.email,
+  a.status,
+  a.comment,
+  a.created_at
+FROM public.annotations a
+JOIN public.users u ON u.user_id = a.user_id
+WHERE a.alignment_id = :alignment_id
+ORDER BY a.user_id, a.created_at DESC
+    """)
+    rows = db.execute(sql, {"alignment_id": alignment_id}).mappings().all()
+    return {"alignment_id": alignment_id, "items": list(rows)}
+
+@app.post("/alignments/{alignment_id}/annotate")
+def annotate_alignment(
+    alignment_id: int,
+    data: AlignmentAnnotationIn,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user_dep),
+):
+    # 1) Validation du status
+    status = (data.status or "").strip().upper()
+    if status not in ALLOWED_ANNOT_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"status invalide. Autorisés: {sorted(ALLOWED_ANNOT_STATUSES)}",
+        )
+
+    # 2) Vérifier que l'alignement existe
+    exists = db.execute(
+        text("SELECT 1 FROM public.alignments WHERE alignment_id = :aid"),
+        {"aid": alignment_id},
+    ).scalar()
+    if not exists:
+        raise HTTPException(status_code=404, detail="alignment_id introuvable")
+
+    # 3) Insert annotation (historique)
+    db.execute(
+        text("""
+            INSERT INTO public.annotations
+              (alignment_id, user_id, status, comment, created_at, updated_at)
+            VALUES
+              (:aid, :uid, :status, :comment, NOW(), NOW())
+        """),
+        {
+            "aid": alignment_id,
+            "uid": user["user_id"],
+            "status": status,
+            "comment": data.comment,
+        },
+    )
+
+    # 4) Trouver le cluster concerné (HEAD triangle uniquement) — VERSION RAPIDE
+    head_info = db.execute(
+        text("""
+            SELECT
+              cm.cluster_id,
+              t.alignment_ab_id,
+              t.alignment_ac_id,
+              t.alignment_bc_id
+            FROM cluster_meta cm
+            JOIN triangles t ON t.id_triangle = cm.ref_triangle_id
+            WHERE
+              t.alignment_ab_id = :aid
+              OR t.alignment_ac_id = :aid
+              OR t.alignment_bc_id = :aid
+            LIMIT 1
+        """),
+        {"aid": alignment_id},
+    ).mappings().first()
+
+    if head_info:
+        cluster_id = head_info["cluster_id"]
+
+        # 4bis) Mise à jour du bon côté AB / AC / BC
+        if alignment_id == head_info["alignment_ab_id"]:
+            db.execute(
+                text("""
+                    UPDATE cluster_meta
+                    SET head_ab_status = :st,
+                        head_ab_comment = :cm,
+                        head_ab_created_at = NOW()
+                    WHERE cluster_id = :cid
+                """),
+                {"st": status, "cm": data.comment, "cid": cluster_id},
+            )
+
+        elif alignment_id == head_info["alignment_ac_id"]:
+            db.execute(
+                text("""
+                    UPDATE cluster_meta
+                    SET head_ac_status = :st,
+                        head_ac_comment = :cm,
+                        head_ac_created_at = NOW()
+                    WHERE cluster_id = :cid
+                """),
+                {"st": status, "cm": data.comment, "cid": cluster_id},
+            )
+
+        elif alignment_id == head_info["alignment_bc_id"]:
+            db.execute(
+                text("""
+                    UPDATE cluster_meta
+                    SET head_bc_status = :st,
+                        head_bc_comment = :cm,
+                        head_bc_created_at = NOW()
+                    WHERE cluster_id = :cid
+                """),
+                {"st": status, "cm": data.comment, "cid": cluster_id},
+            )
+
+        # 5) Recalcul du trio depuis cluster_meta UNIQUEMENT (ultra rapide)
+        db.execute(
+            text("""
+                UPDATE cluster_meta
+                SET
+                  trio_sorted = upper(
+                    array_to_string(
+                      (
+                        SELECT array_agg(s ORDER BY s)
+                        FROM unnest(ARRAY[
+                          COALESCE(head_ab_status, 'UNREVIEWED'),
+                          COALESCE(head_ac_status, 'UNREVIEWED'),
+                          COALESCE(head_bc_status, 'UNREVIEWED')
+                        ]) s
+                      ),
+                      '-'
+                    )
+                  ),
+                  head_trio_computed_at = NOW()
+                WHERE cluster_id = :cid
+            """),
+            {"cid": cluster_id},
+        )
+
+    db.commit()
+
+    return {
+        "ok": True,
+        "alignment_id": alignment_id,
+        "user": {"user_id": user["user_id"], "email": user["email"]},
+        "saved": {"status": status, "comment": data.comment},
+        "cluster_recomputed": bool(head_info),
+    }
