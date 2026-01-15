@@ -8,6 +8,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 
+from fastapi import Header
+
 from .db import get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -88,3 +90,17 @@ def get_current_user(token: str, db: Session) -> dict:
     if not user:
         raise HTTPException(status_code=401, detail="Utilisateur introuvable")
     return dict(user)
+
+def get_current_user_dep(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    Récupère l'utilisateur depuis le header:
+    Authorization: Bearer <token>
+    """
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Authorization Bearer token manquant")
+
+    token = authorization.split(" ", 1)[1].strip()
+    return get_current_user(token, db)
