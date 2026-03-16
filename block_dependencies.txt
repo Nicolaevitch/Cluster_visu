@@ -1,0 +1,63 @@
+Généré le : 2026-03-13T13:58:22.823Z
+Sauvegardé le : 2026-03-13T13:58:21.858429Z
+Nombre de dépendances : 12
+
+=== Dépendance 1 ===
+from_block_id : BLK-20260313115944-3GDV
+to_block_id   : BLK-20260313115613-CRZN
+created_at    : 2026-03-13T12:10:14.634Z
+
+=== Dépendance 2 ===
+from_block_id : BLK-20260313115944-3GDV
+to_block_id   : BLK-20260313115759-9F65
+created_at    : 2026-03-13T12:10:22.857Z
+
+=== Dépendance 3 ===
+from_block_id : BLK-20260313115004-DJIB
+to_block_id   : BLK-20260313120331-ISZT
+created_at    : 2026-03-13T12:11:04.307Z
+
+=== Dépendance 4 ===
+from_block_id : BLK-20260313115053-B47J
+to_block_id   : BLK-20260313114409-HHXT
+created_at    : 2026-03-13T13:43:36.978Z
+
+=== Dépendance 5 ===
+from_block_id : BLK-20260313115053-B47J
+to_block_id   : BLK-20260313114749-VOKE
+created_at    : 2026-03-13T13:43:39.603Z
+
+=== Dépendance 6 ===
+from_block_id : BLK-20260313115053-B47J
+to_block_id   : BLK-20260313115004-DJIB
+created_at    : 2026-03-13T13:43:41.892Z
+
+=== Dépendance 7 ===
+from_block_id : BLK-20260313115053-B47J
+to_block_id   : BLK-20260313115034-9KLN
+created_at    : 2026-03-13T13:43:44.324Z
+
+=== Dépendance 8 ===
+from_block_id : BLK-20260313115134-UDRD
+to_block_id   : BLK-20260313115053-B47J
+created_at    : 2026-03-13T13:43:55.164Z
+
+=== Dépendance 9 ===
+from_block_id : BLK-20260313115326-9U95
+to_block_id   : BLK-20260313120519-BXLT
+created_at    : 2026-03-13T13:44:10.698Z
+
+=== Dépendance 10 ===
+from_block_id : BLK-20260313115326-9U95
+to_block_id   : BLK-20260313115134-UDRD
+created_at    : 2026-03-13T13:44:13.947Z
+
+=== Dépendance 11 ===
+from_block_id : BLK-20260313120519-BXLT
+to_block_id   : BLK-20260313120546-3OZX
+created_at    : 2026-03-13T13:44:58.459Z
+
+=== Dépendance 12 ===
+from_block_id : BLK-20260313120519-BXLT
+to_block_id   : BLK-20260313115944-3GDV
+created_at    : 2026-03-13T13:45:52.163Z

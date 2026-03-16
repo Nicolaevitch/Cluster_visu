@@ -674,3 +674,44 @@ WHERE cluster_id = :cid
         "n_alignments_annotated": n_inserted,
         "cluster_meta_updated": True,
     }
+
+@app.get("/stats/overview")
+def stats_overview(db: Session = Depends(get_db)):
+    sql_align = text("""
+WITH latest AS (
+  SELECT DISTINCT ON (a.alignment_id)
+    a.alignment_id,
+    upper(a.status::text) AS status
+  FROM public.annotations a
+  ORDER BY a.alignment_id, a.updated_at DESC, a.created_at DESC, a.annotation_id DESC
+)
+SELECT
+  COALESCE(latest.status, 'UNREVIEWED') AS status,
+  COUNT(*)::bigint AS alignments_count
+FROM public.alignments al
+LEFT JOIN latest ON latest.alignment_id = al.alignment_id
+GROUP BY 1
+ORDER BY alignments_count DESC, status ASC
+    """)
+
+    sql_clusters = text("""
+SELECT
+  COALESCE(NULLIF(upper(trio_sorted), ''), 'UNREVIEWED-UNREVIEWED-UNREVIEWED') AS trio_sorted,
+  COUNT(*)::bigint AS clusters_count
+FROM public.cluster_meta
+GROUP BY 1
+ORDER BY clusters_count DESC, trio_sorted ASC
+    """)
+
+    align_rows = db.execute(sql_align).mappings().all()
+    cluster_rows = db.execute(sql_clusters).mappings().all()
+
+    # Totaux utiles pour le front
+    total_alignments = sum(r["alignments_count"] for r in align_rows)
+    total_clusters = sum(r["clusters_count"] for r in cluster_rows)
+
+    return {
+        "alignments_by_status": list(align_rows),
+        "clusters_by_trio_sorted": list(cluster_rows),
+        "totals": {"alignments": total_alignments, "clusters": total_clusters},
+    }

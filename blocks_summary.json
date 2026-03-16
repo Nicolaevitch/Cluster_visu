@@ -1,0 +1,334 @@
+{
+  "blocks": [
+    {
+      "id": "BLK-20260313120546-3OZX",
+      "type": "block",
+      "name": "cluster_modern",
+      "created_at": "2026-03-13T12:05:46.369Z",
+      "highest_level": 2,
+      "context": "contient : \n├── dist\n│       │   ├── assets\n│       │   ├── index.html\n│       │   └── vite.svg\n│       ├── index.html\n│       ├── package.json\n│       ├── package-lock.json\n│       ├── public\n│       │   └── vite.svg\n│       ├── README.md\n│       ├── schema.sql\n│       └── src\n│           ├── counter.js\n│           ├── javascript.svg\n│           ├── main.js\n│           └── style.css",
+      "items": [
+        {
+          "path": "./frontend/cluster_modern",
+          "name": "cluster_modern",
+          "type": "folder",
+          "depth": 2,
+          "added_at": "2026-03-13T12:05:46.369Z"
+        }
+      ],
+      "child_block_ids": [
+        "BLK-20260313115759-9F65",
+        "BLK-20260313115944-3GDV",
+        "BLK-20260313120054-3LH1",
+        "BLK-20260313120214-7AQE",
+        "BLK-20260313120331-ISZT",
+        "BLK-20260313115613-CRZN"
+      ],
+      "parent_block_ids": [
+        "BLK-20260313120519-BXLT"
+      ]
+    },
+    {
+      "id": "BLK-20260313120519-BXLT",
+      "type": "block",
+      "name": "frontend",
+      "created_at": "2026-03-13T12:05:19.588Z",
+      "highest_level": 1,
+      "context": "contient le front et cluster_modern/",
+      "items": [
+        {
+          "path": "./frontend",
+          "name": "frontend",
+          "type": "folder",
+          "depth": 1,
+          "added_at": "2026-03-13T12:05:19.588Z"
+        }
+      ],
+      "child_block_ids": [
+        "BLK-20260313120546-3OZX"
+      ],
+      "parent_block_ids": []
+    },
+    {
+      "id": "BLK-20260313120331-ISZT",
+      "type": "block",
+      "name": "schema.sql",
+      "created_at": "2026-03-13T12:03:31.971Z",
+      "highest_level": 3,
+      "context": "schema.sql contient le schéma PostgreSQL complet utilisé par l’application Cluster Visu. Il définit les types métier (annotationstatus, userrole), les tables principales (users, annotations, alignments, passages, texts, authors, triangles, cluster_meta, etc.), ainsi que les séquences, clés primaires, index et contraintes de clés étrangères. Ce fichier décrit donc la structure logique de la base sur laquelle repose tout le backend : authentification des utilisateurs, consultation des passages et textes, gestion des alignements, historisation des annotations humaines, organisation en triangles et en clusters, et relations entre œuvres, auteurs et passages. Il sert de référence pour comprendre le modèle de données global du projet.\n\nLe modèle suit cette logique :\n\nauthors ↔ texts ↔ passages ↔ alignments ↔ annotations\net en parallèle :\nalignments ↔ triangles ↔ cluster_meta\n\nDonc :\n\nun texte a un ou plusieurs auteurs\n\nun texte contient des passages\n\nun alignement relie deux passages\n\nune annotation qualifie un alignement\n\nun triangle regroupe 3 alignements\n\nun cluster regroupe plusieurs triangles",
+      "items": [
+        {
+          "path": "./frontend/cluster_modern/schema.sql",
+          "name": "schema.sql",
+          "type": "file",
+          "depth": 3,
+          "added_at": "2026-03-13T12:03:31.971Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313120546-3OZX"
+      ]
+    },
+    {
+      "id": "BLK-20260313120214-7AQE",
+      "type": "block",
+      "name": "package.json",
+      "created_at": "2026-03-13T12:02:14.115Z",
+      "highest_level": 3,
+      "context": "package.json est le fichier de configuration npm du frontend cluster_modern. Il décrit le projet JavaScript, déclare qu’il utilise les modules ES (\"type\": \"module\"), définit les scripts de développement et de build (vite, vite build, vite preview) et liste les dépendances nécessaires, ici principalement Vite comme outil de bundling et serveur de développement. Ce fichier sert donc à piloter l’installation des dépendances et l’exécution du frontend en mode développement ou production.",
+      "items": [
+        {
+          "path": "./frontend/cluster_modern/package.json",
+          "name": "package.json",
+          "type": "file",
+          "depth": 3,
+          "added_at": "2026-03-13T12:02:14.115Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313120546-3OZX"
+      ]
+    },
+    {
+      "id": "BLK-20260313120054-3LH1",
+      "type": "block",
+      "name": "package-lock.json",
+      "created_at": "2026-03-13T12:00:54.748Z",
+      "highest_level": 3,
+      "context": "package-lock.json est le fichier de verrouillage des dépendances npm du frontend cluster_modern. Il enregistre précisément les versions installées de tous les paquets du projet, ici principalement l’écosystème Vite, ainsi que ses dépendances transitives (esbuild, rollup, postcss, etc.). Son rôle est de garantir des installations reproductibles entre machines et environnements, en évitant que npm install ne récupère des versions différentes d’un poste à l’autre. Ce fichier est généré automatiquement par npm et sert surtout à la stabilité technique du build frontend.",
+      "items": [
+        {
+          "path": "./frontend/cluster_modern/package-lock.json",
+          "name": "package-lock.json",
+          "type": "file",
+          "depth": 3,
+          "added_at": "2026-03-13T12:00:54.748Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313120546-3OZX"
+      ]
+    },
+    {
+      "id": "BLK-20260313115944-3GDV",
+      "type": "block",
+      "name": "index.html",
+      "created_at": "2026-03-13T11:59:44.005Z",
+      "highest_level": 3,
+      "context": "index.html est la page HTML principale du frontend de l’application Cluster Visu. Elle initialise la structure minimale de l’interface avec un conteneur <div id=\"app\"> dans lequel l’application JavaScript rend dynamiquement les pages (login, liste des clusters, détail d’un cluster). Le fichier charge le script principal main.js en module ES, qui gère le routage, les appels API et le rendu de l’interface. Cette page sert donc de point d’entrée unique (SPA – Single Page Application) pour toute l’application frontend.",
+      "items": [
+        {
+          "path": "./frontend/cluster_modern/index.html",
+          "name": "index.html",
+          "type": "file",
+          "depth": 3,
+          "added_at": "2026-03-13T11:59:44.005Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313120546-3OZX"
+      ]
+    },
+    {
+      "id": "BLK-20260313115759-9F65",
+      "type": "block",
+      "name": "style.css",
+      "created_at": "2026-03-13T11:57:59.725Z",
+      "highest_level": 4,
+      "context": "style.css définit les styles visuels globaux du frontend Cluster Visu. Il combine les styles de base générés par Vite (typographie, boutons, couleurs globales, comportement light/dark) avec les styles spécifiques de l’application : mise en page générale (wrap, row), tableaux, cartes de passages, blocs d’annotations, boutons d’action, badges de statut (pill) et sections de détail des alignements. Ce fichier structure l’apparence des pages clusters et détail cluster, en assurant une présentation lisible des passages, métadonnées et annotations.",
+      "items": [
+        {
+          "path": "./frontend/cluster_modern/src/style.css",
+          "name": "style.css",
+          "type": "file",
+          "depth": 4,
+          "added_at": "2026-03-13T11:57:59.725Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313120546-3OZX"
+      ]
+    },
+    {
+      "id": "BLK-20260313115613-CRZN",
+      "type": "block",
+      "name": "main.js",
+      "created_at": "2026-03-13T11:56:13.316Z",
+      "highest_level": 4,
+      "context": "main.js est le point d’entrée du frontend de l’application Cluster Visu. Il gère l’authentification côté navigateur via localStorage (token JWT et email utilisateur), les appels API au backend (apiGet, apiPost), le routage simple par hash (#/login, #/, #/cluster/:id) et le rendu dynamique des pages principales. Le fichier construit l’interface de connexion, la liste des clusters avec filtres par trio, le tableau de bord global des statuts, ainsi que la page détail d’un cluster avec résumé, triangle de tête, passages, annotations et propagation. Il centralise aussi la logique d’interaction utilisateur : ouverture/fermeture des éditeurs d’annotation, envoi des annotations au backend, rafraîchissement des blocs d’affichage et mise à jour de la distribution des trios après modification.",
+      "items": [
+        {
+          "path": "./frontend/cluster_modern/src/main.js",
+          "name": "main.js",
+          "type": "file",
+          "depth": 4,
+          "added_at": "2026-03-13T11:56:13.316Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313120546-3OZX"
+      ]
+    },
+    {
+      "id": "BLK-20260313115326-9U95",
+      "type": "block",
+      "name": "cluster_visu",
+      "created_at": "2026-03-13T11:53:26.399Z",
+      "highest_level": 1,
+      "context": "c'est l'environnement virtuel du projet",
+      "items": [
+        {
+          "path": "./cluster_visu",
+          "name": "cluster_visu",
+          "type": "folder",
+          "depth": 1,
+          "added_at": "2026-03-13T11:53:26.399Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": []
+    },
+    {
+      "id": "BLK-20260313115134-UDRD",
+      "type": "block",
+      "name": "backend",
+      "created_at": "2026-03-13T11:51:34.655Z",
+      "highest_level": 1,
+      "context": "contient app/",
+      "items": [
+        {
+          "path": "./backend",
+          "name": "backend",
+          "type": "folder",
+          "depth": 1,
+          "added_at": "2026-03-13T11:51:34.655Z"
+        }
+      ],
+      "child_block_ids": [
+        "BLK-20260313115053-B47J"
+      ],
+      "parent_block_ids": []
+    },
+    {
+      "id": "BLK-20260313115053-B47J",
+      "type": "block",
+      "name": "app",
+      "created_at": "2026-03-13T11:50:53.743Z",
+      "highest_level": 2,
+      "context": "regroupe auth.py, main.py, settings.py, db.py ",
+      "items": [
+        {
+          "path": "./backend/app",
+          "name": "app",
+          "type": "folder",
+          "depth": 2,
+          "added_at": "2026-03-13T11:50:53.743Z"
+        }
+      ],
+      "child_block_ids": [
+        "BLK-20260313115004-DJIB",
+        "BLK-20260313115034-9KLN",
+        "BLK-20260313114749-VOKE",
+        "BLK-20260313114409-HHXT"
+      ],
+      "parent_block_ids": [
+        "BLK-20260313115134-UDRD"
+      ]
+    },
+    {
+      "id": "BLK-20260313115034-9KLN",
+      "type": "block",
+      "name": "settings.py",
+      "created_at": "2026-03-13T11:50:34.853Z",
+      "highest_level": 3,
+      "context": "Ce fichier gère la configuration de connexion à la base de données. Il lit la variable d’environnement DATABASE_URL, qui contient l’URL PostgreSQL utilisée par SQLAlchemy pour se connecter à la base. Si cette variable n’est pas définie, le programme s’arrête immédiatement avec une erreur afin d’éviter un démarrage du serveur sans configuration valide. Cela permet de séparer les paramètres sensibles (identifiants, hôte, base) du code source et de configurer facilement l’application selon l’environnement (local, serveur, production).",
+      "items": [
+        {
+          "path": "./backend/app/settings.py",
+          "name": "settings.py",
+          "type": "file",
+          "depth": 3,
+          "added_at": "2026-03-13T11:50:34.853Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313115053-B47J"
+      ]
+    },
+    {
+      "id": "BLK-20260313115004-DJIB",
+      "type": "block",
+      "name": "main.py",
+      "created_at": "2026-03-13T11:50:04.744Z",
+      "highest_level": 3,
+      "context": "Ce fichier constitue le backend principal FastAPI de l’application Cluster Visu (POC). Il expose les endpoints HTTP permettant d’explorer et d’annoter les clusters d’alignements. L’API permet notamment de lister les clusters (cluster_meta), consulter leurs triangles (triangles), récupérer les passages et métadonnées associées (passages, texts, authors), et gérer les annotations d’alignements (annotations). Les annotations sont historisées et liées à l’utilisateur authentifié via le module auth. Lorsqu’un alignement est annoté, l’API met à jour l’état du cluster correspondant dans cluster_meta (statuts head_ab/ac/bc) et recalcule la signature trio_sorted. Le backend fournit également des opérations de propagation d’annotations à l’échelle d’un cluster, des distributions statistiques et des endpoints de diagnostic (health, db_ping). Les sessions base de données sont injectées via get_db, et certaines routes nécessitent un utilisateur authentifié obtenu avec get_current_user_dep.",
+      "items": [
+        {
+          "path": "./backend/app/main.py",
+          "name": "main.py",
+          "type": "file",
+          "depth": 3,
+          "added_at": "2026-03-13T11:50:04.744Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313115053-B47J"
+      ]
+    },
+    {
+      "id": "BLK-20260313114749-VOKE",
+      "type": "block",
+      "name": "db.py",
+      "created_at": "2026-03-13T11:47:49.592Z",
+      "highest_level": 3,
+      "context": "db.py gère la connexion à la base de données et fournit une session SQLAlchemy aux routes de l’API.\n\ndb.py configure la connexion à la base PostgreSQL avec SQLAlchemy. Il crée un moteur (engine), une factory de sessions (SessionLocal) et expose la dépendance get_db() utilisée par FastAPI pour fournir une session de base de données à chaque requête API. Chaque session est automatiquement fermée après le traitement de la requête.",
+      "items": [
+        {
+          "path": "./backend/app/db.py",
+          "name": "db.py",
+          "type": "file",
+          "depth": 3,
+          "added_at": "2026-03-13T11:47:49.592Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313115053-B47J"
+      ]
+    },
+    {
+      "id": "BLK-20260313114409-HHXT",
+      "type": "block",
+      "name": "auth.py",
+      "created_at": "2026-03-13T11:44:09.665Z",
+      "highest_level": 3,
+      "context": "Ce fichier met en place une authentification pour le backend FastAPI.\n“Qui est l’utilisateur qui appelle l’API, et est-il autorisé ?”\n\ndatetime, timedelta : servent à définir une date d’expiration pour le token.\n\nOptional : indique qu’une valeur peut être absente (None).\n\nAPIRouter : crée un groupe de routes FastAPI.\n\nDepends : permet l’injection de dépendances, ici surtout la session de base de données.\n\nHTTPException : renvoie des erreurs HTTP propres, par exemple 401 Unauthorized.\n\nBaseModel : définit le schéma de données attendu en entrée.\n\ntext : permet d’écrire des requêtes SQL brutes avec SQLAlchemy.\n\nSession : représente une session de connexion à la base.\n\njwt, JWTError : servent à encoder et décoder les tokens JWT.\n\nHeader : permet de lire le header HTTP Authorization.\n\nget_db : fonction locale du projet qui fournit la session DB.",
+      "items": [
+        {
+          "path": "./backend/app/auth.py",
+          "name": "auth.py",
+          "type": "file",
+          "depth": 3,
+          "added_at": "2026-03-13T11:44:09.665Z"
+        }
+      ],
+      "child_block_ids": [],
+      "parent_block_ids": [
+        "BLK-20260313115053-B47J"
+      ]
+    }
+  ],
+  "generated_at": "2026-03-13T13:01:48.430Z",
+  "source_tree_root": ".",
+  "current_view_path": ".",
+  "depth_setting": 1,
+  "saved_at": "2026-03-13T13:01:47.486375Z"
+}

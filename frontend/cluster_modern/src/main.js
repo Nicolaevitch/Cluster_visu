@@ -289,6 +289,81 @@ function setSelectedTrio(trioValue) {
   history.replaceState({}, "", url.toString());
 }
 
+async function fetchStatsOverview() {
+  return apiGet("/api/stats/overview");
+}
+
+function renderOverviewBlock(data) {
+  const totals = data?.totals || {};
+  const align = data?.alignments_by_status || [];
+  const clusters = data?.clusters_by_trio_sorted || [];
+
+  const alignRows = align.map(r => `
+    <tr>
+      <td><b>${htmlEscape(r.status)}</b></td>
+      <td style="text-align:right;">${htmlEscape(r.alignments_count)}</td>
+    </tr>
+  `).join("");
+
+  const clusterRows = clusters.map(r => `
+    <tr>
+      <td><b>${htmlEscape(r.trio_sorted)}</b></td>
+      <td style="text-align:right;">${htmlEscape(r.clusters_count)}</td>
+    </tr>
+  `).join("");
+
+  // hauteur ~10 lignes (à ajuster si tu veux plus/moins)
+  const SCROLL_MAX_H = "340px";
+
+  return `
+    <details class="dist-details" open style="margin:12px 0;">
+      <summary><b>État des comptes</b></summary>
+
+      <div class="row" style="gap:12px; align-items:flex-start; flex-wrap:wrap; margin-top:10px;">
+        <div style="flex:1; min-width:320px;">
+          <div class="muted small" style="margin-bottom:6px;">
+            <b>Alignments</b> — total: ${htmlEscape(totals.alignments ?? "—")}
+          </div>
+
+          <div style="max-height:${SCROLL_MAX_H}; overflow-y:auto; border:1px solid #ddd; border-radius:8px;">
+            <table class="dist-table" style="margin:0;">
+              <thead>
+                <tr>
+                  <th style="position:sticky; top:0; background:#fff; z-index:1;">Status (dernier)</th>
+                  <th style="position:sticky; top:0; background:#fff; z-index:1; text-align:right;">Nb alignments</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${alignRows || `<tr><td colspan="2" class="muted small">Aucune donnée.</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="flex:1; min-width:320px;">
+          <div class="muted small" style="margin-bottom:6px;">
+            <b>Clusters</b> — total: ${htmlEscape(totals.clusters ?? "—")}
+          </div>
+
+          <div style="max-height:${SCROLL_MAX_H}; overflow-y:auto; border:1px solid #ddd; border-radius:8px;">
+            <table class="dist-table" style="margin:0;">
+              <thead>
+                <tr>
+                  <th style="position:sticky; top:0; background:#fff; z-index:1;">trio_sorted</th>
+                  <th style="position:sticky; top:0; background:#fff; z-index:1; text-align:right;">Nb clusters</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${clusterRows || `<tr><td colspan="2" class="muted small">Aucune donnée.</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
 async function renderClustersPage() {
   const currentTrio = getSelectedTrio();
 
@@ -306,6 +381,9 @@ async function renderClustersPage() {
         </div>
       </div>
 
+      <!-- 🧾 Dashboard -->
+      <div id="overview" class="muted small">Chargement des stats...</div>
+
       <div class="row">
         <label for="trioSelect"><b>Filtre trio annotation</b></label>
         <select id="trioSelect"></select>
@@ -315,6 +393,13 @@ async function renderClustersPage() {
       <div id="table"></div>
     </div>
   `);
+  // Charger le dashboard
+try {
+  const overview = await fetchStatsOverview();
+  document.querySelector("#overview").innerHTML = renderOverviewBlock(overview);
+} catch (e) {
+  document.querySelector("#overview").textContent = `Stats indisponibles: ${String(e)}`;
+}
 
   // Remplit le select
   const select = document.querySelector("#trioSelect");

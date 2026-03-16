@@ -1,0 +1,247 @@
+Généré le : 2026-03-13T13:01:48.430Z
+Sauvegardé le : 2026-03-13T13:01:47.486375Z
+Racine : .
+Vue courante : .
+Profondeur affichée : 1
+Nombre de blocs : 15
+
+=== Bloc 1 ===
+ID : BLK-20260313120546-3OZX
+Nom : cluster_modern
+Type : block
+Création : 2026-03-13T12:05:46.369Z
+Niveau le plus haut : 2
+Contexte : contient : 
+├── dist
+│       │   ├── assets
+│       │   ├── index.html
+│       │   └── vite.svg
+│       ├── index.html
+│       ├── package.json
+│       ├── package-lock.json
+│       ├── public
+│       │   └── vite.svg
+│       ├── README.md
+│       ├── schema.sql
+│       └── src
+│           ├── counter.js
+│           ├── javascript.svg
+│           ├── main.js
+│           └── style.css
+Parents hiérarchiques : BLK-20260313120519-BXLT
+Enfants hiérarchiques : BLK-20260313115759-9F65, BLK-20260313115944-3GDV, BLK-20260313120054-3LH1, BLK-20260313120214-7AQE, BLK-20260313120331-ISZT, BLK-20260313115613-CRZN
+Éléments :
+  - [folder] ./frontend/cluster_modern (niveau 2)
+
+=== Bloc 2 ===
+ID : BLK-20260313120519-BXLT
+Nom : frontend
+Type : block
+Création : 2026-03-13T12:05:19.588Z
+Niveau le plus haut : 1
+Contexte : contient le front et cluster_modern/
+Parents hiérarchiques : (aucun)
+Enfants hiérarchiques : BLK-20260313120546-3OZX
+Éléments :
+  - [folder] ./frontend (niveau 1)
+
+=== Bloc 3 ===
+ID : BLK-20260313120331-ISZT
+Nom : schema.sql
+Type : block
+Création : 2026-03-13T12:03:31.971Z
+Niveau le plus haut : 3
+Contexte : schema.sql contient le schéma PostgreSQL complet utilisé par l’application Cluster Visu. Il définit les types métier (annotationstatus, userrole), les tables principales (users, annotations, alignments, passages, texts, authors, triangles, cluster_meta, etc.), ainsi que les séquences, clés primaires, index et contraintes de clés étrangères. Ce fichier décrit donc la structure logique de la base sur laquelle repose tout le backend : authentification des utilisateurs, consultation des passages et textes, gestion des alignements, historisation des annotations humaines, organisation en triangles et en clusters, et relations entre œuvres, auteurs et passages. Il sert de référence pour comprendre le modèle de données global du projet.
+
+Le modèle suit cette logique :
+
+authors ↔ texts ↔ passages ↔ alignments ↔ annotations
+et en parallèle :
+alignments ↔ triangles ↔ cluster_meta
+
+Donc :
+
+un texte a un ou plusieurs auteurs
+
+un texte contient des passages
+
+un alignement relie deux passages
+
+une annotation qualifie un alignement
+
+un triangle regroupe 3 alignements
+
+un cluster regroupe plusieurs triangles
+Parents hiérarchiques : BLK-20260313120546-3OZX
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./frontend/cluster_modern/schema.sql (niveau 3)
+
+=== Bloc 4 ===
+ID : BLK-20260313120214-7AQE
+Nom : package.json
+Type : block
+Création : 2026-03-13T12:02:14.115Z
+Niveau le plus haut : 3
+Contexte : package.json est le fichier de configuration npm du frontend cluster_modern. Il décrit le projet JavaScript, déclare qu’il utilise les modules ES ("type": "module"), définit les scripts de développement et de build (vite, vite build, vite preview) et liste les dépendances nécessaires, ici principalement Vite comme outil de bundling et serveur de développement. Ce fichier sert donc à piloter l’installation des dépendances et l’exécution du frontend en mode développement ou production.
+Parents hiérarchiques : BLK-20260313120546-3OZX
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./frontend/cluster_modern/package.json (niveau 3)
+
+=== Bloc 5 ===
+ID : BLK-20260313120054-3LH1
+Nom : package-lock.json
+Type : block
+Création : 2026-03-13T12:00:54.748Z
+Niveau le plus haut : 3
+Contexte : package-lock.json est le fichier de verrouillage des dépendances npm du frontend cluster_modern. Il enregistre précisément les versions installées de tous les paquets du projet, ici principalement l’écosystème Vite, ainsi que ses dépendances transitives (esbuild, rollup, postcss, etc.). Son rôle est de garantir des installations reproductibles entre machines et environnements, en évitant que npm install ne récupère des versions différentes d’un poste à l’autre. Ce fichier est généré automatiquement par npm et sert surtout à la stabilité technique du build frontend.
+Parents hiérarchiques : BLK-20260313120546-3OZX
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./frontend/cluster_modern/package-lock.json (niveau 3)
+
+=== Bloc 6 ===
+ID : BLK-20260313115944-3GDV
+Nom : index.html
+Type : block
+Création : 2026-03-13T11:59:44.005Z
+Niveau le plus haut : 3
+Contexte : index.html est la page HTML principale du frontend de l’application Cluster Visu. Elle initialise la structure minimale de l’interface avec un conteneur <div id="app"> dans lequel l’application JavaScript rend dynamiquement les pages (login, liste des clusters, détail d’un cluster). Le fichier charge le script principal main.js en module ES, qui gère le routage, les appels API et le rendu de l’interface. Cette page sert donc de point d’entrée unique (SPA – Single Page Application) pour toute l’application frontend.
+Parents hiérarchiques : BLK-20260313120546-3OZX
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./frontend/cluster_modern/index.html (niveau 3)
+
+=== Bloc 7 ===
+ID : BLK-20260313115759-9F65
+Nom : style.css
+Type : block
+Création : 2026-03-13T11:57:59.725Z
+Niveau le plus haut : 4
+Contexte : style.css définit les styles visuels globaux du frontend Cluster Visu. Il combine les styles de base générés par Vite (typographie, boutons, couleurs globales, comportement light/dark) avec les styles spécifiques de l’application : mise en page générale (wrap, row), tableaux, cartes de passages, blocs d’annotations, boutons d’action, badges de statut (pill) et sections de détail des alignements. Ce fichier structure l’apparence des pages clusters et détail cluster, en assurant une présentation lisible des passages, métadonnées et annotations.
+Parents hiérarchiques : BLK-20260313120546-3OZX
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./frontend/cluster_modern/src/style.css (niveau 4)
+
+=== Bloc 8 ===
+ID : BLK-20260313115613-CRZN
+Nom : main.js
+Type : block
+Création : 2026-03-13T11:56:13.316Z
+Niveau le plus haut : 4
+Contexte : main.js est le point d’entrée du frontend de l’application Cluster Visu. Il gère l’authentification côté navigateur via localStorage (token JWT et email utilisateur), les appels API au backend (apiGet, apiPost), le routage simple par hash (#/login, #/, #/cluster/:id) et le rendu dynamique des pages principales. Le fichier construit l’interface de connexion, la liste des clusters avec filtres par trio, le tableau de bord global des statuts, ainsi que la page détail d’un cluster avec résumé, triangle de tête, passages, annotations et propagation. Il centralise aussi la logique d’interaction utilisateur : ouverture/fermeture des éditeurs d’annotation, envoi des annotations au backend, rafraîchissement des blocs d’affichage et mise à jour de la distribution des trios après modification.
+Parents hiérarchiques : BLK-20260313120546-3OZX
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./frontend/cluster_modern/src/main.js (niveau 4)
+
+=== Bloc 9 ===
+ID : BLK-20260313115326-9U95
+Nom : cluster_visu
+Type : block
+Création : 2026-03-13T11:53:26.399Z
+Niveau le plus haut : 1
+Contexte : c'est l'environnement virtuel du projet
+Parents hiérarchiques : (aucun)
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [folder] ./cluster_visu (niveau 1)
+
+=== Bloc 10 ===
+ID : BLK-20260313115134-UDRD
+Nom : backend
+Type : block
+Création : 2026-03-13T11:51:34.655Z
+Niveau le plus haut : 1
+Contexte : contient app/
+Parents hiérarchiques : (aucun)
+Enfants hiérarchiques : BLK-20260313115053-B47J
+Éléments :
+  - [folder] ./backend (niveau 1)
+
+=== Bloc 11 ===
+ID : BLK-20260313115053-B47J
+Nom : app
+Type : block
+Création : 2026-03-13T11:50:53.743Z
+Niveau le plus haut : 2
+Contexte : regroupe auth.py, main.py, settings.py, db.py 
+Parents hiérarchiques : BLK-20260313115134-UDRD
+Enfants hiérarchiques : BLK-20260313115004-DJIB, BLK-20260313115034-9KLN, BLK-20260313114749-VOKE, BLK-20260313114409-HHXT
+Éléments :
+  - [folder] ./backend/app (niveau 2)
+
+=== Bloc 12 ===
+ID : BLK-20260313115034-9KLN
+Nom : settings.py
+Type : block
+Création : 2026-03-13T11:50:34.853Z
+Niveau le plus haut : 3
+Contexte : Ce fichier gère la configuration de connexion à la base de données. Il lit la variable d’environnement DATABASE_URL, qui contient l’URL PostgreSQL utilisée par SQLAlchemy pour se connecter à la base. Si cette variable n’est pas définie, le programme s’arrête immédiatement avec une erreur afin d’éviter un démarrage du serveur sans configuration valide. Cela permet de séparer les paramètres sensibles (identifiants, hôte, base) du code source et de configurer facilement l’application selon l’environnement (local, serveur, production).
+Parents hiérarchiques : BLK-20260313115053-B47J
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./backend/app/settings.py (niveau 3)
+
+=== Bloc 13 ===
+ID : BLK-20260313115004-DJIB
+Nom : main.py
+Type : block
+Création : 2026-03-13T11:50:04.744Z
+Niveau le plus haut : 3
+Contexte : Ce fichier constitue le backend principal FastAPI de l’application Cluster Visu (POC). Il expose les endpoints HTTP permettant d’explorer et d’annoter les clusters d’alignements. L’API permet notamment de lister les clusters (cluster_meta), consulter leurs triangles (triangles), récupérer les passages et métadonnées associées (passages, texts, authors), et gérer les annotations d’alignements (annotations). Les annotations sont historisées et liées à l’utilisateur authentifié via le module auth. Lorsqu’un alignement est annoté, l’API met à jour l’état du cluster correspondant dans cluster_meta (statuts head_ab/ac/bc) et recalcule la signature trio_sorted. Le backend fournit également des opérations de propagation d’annotations à l’échelle d’un cluster, des distributions statistiques et des endpoints de diagnostic (health, db_ping). Les sessions base de données sont injectées via get_db, et certaines routes nécessitent un utilisateur authentifié obtenu avec get_current_user_dep.
+Parents hiérarchiques : BLK-20260313115053-B47J
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./backend/app/main.py (niveau 3)
+
+=== Bloc 14 ===
+ID : BLK-20260313114749-VOKE
+Nom : db.py
+Type : block
+Création : 2026-03-13T11:47:49.592Z
+Niveau le plus haut : 3
+Contexte : db.py gère la connexion à la base de données et fournit une session SQLAlchemy aux routes de l’API.
+
+db.py configure la connexion à la base PostgreSQL avec SQLAlchemy. Il crée un moteur (engine), une factory de sessions (SessionLocal) et expose la dépendance get_db() utilisée par FastAPI pour fournir une session de base de données à chaque requête API. Chaque session est automatiquement fermée après le traitement de la requête.
+Parents hiérarchiques : BLK-20260313115053-B47J
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./backend/app/db.py (niveau 3)
+
+=== Bloc 15 ===
+ID : BLK-20260313114409-HHXT
+Nom : auth.py
+Type : block
+Création : 2026-03-13T11:44:09.665Z
+Niveau le plus haut : 3
+Contexte : Ce fichier met en place une authentification pour le backend FastAPI.
+“Qui est l’utilisateur qui appelle l’API, et est-il autorisé ?”
+
+datetime, timedelta : servent à définir une date d’expiration pour le token.
+
+Optional : indique qu’une valeur peut être absente (None).
+
+APIRouter : crée un groupe de routes FastAPI.
+
+Depends : permet l’injection de dépendances, ici surtout la session de base de données.
+
+HTTPException : renvoie des erreurs HTTP propres, par exemple 401 Unauthorized.
+
+BaseModel : définit le schéma de données attendu en entrée.
+
+text : permet d’écrire des requêtes SQL brutes avec SQLAlchemy.
+
+Session : représente une session de connexion à la base.
+
+jwt, JWTError : servent à encoder et décoder les tokens JWT.
+
+Header : permet de lire le header HTTP Authorization.
+
+get_db : fonction locale du projet qui fournit la session DB.
+Parents hiérarchiques : BLK-20260313115053-B47J
+Enfants hiérarchiques : (aucun)
+Éléments :
+  - [file] ./backend/app/auth.py (niveau 3)
