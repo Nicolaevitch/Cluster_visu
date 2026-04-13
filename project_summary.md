@@ -1,3 +1,101 @@
+Contexte scientifique du projet ModERN
+
+Le projet ModERN s’inscrit dans une démarche de recherche en humanités numériques visant à analyser les phénomènes d’intertextualité dans un corpus de textes, principalement français des XVIIe–XVIIIe siècles.
+
+L’objectif est d’identifier, à partir de similarités locales entre segments de texte, des structures plus larges de circulation des idées, des motifs et des formulations.
+
+Le système repose sur une approche mixte :
+
+détection automatique de similarités
+validation et enrichissement par annotation humaine
+
+Définitions des objets clés
+Alignment
+
+Un alignment est une relation de similarité entre deux passages de textes.
+
+Il est généré automatiquement à partir de mesures de similarité :
+
+similarité lexicale (distance de Levenshtein)
+similarité vectorielle (embeddings)
+
+Chaque alignment relie un passage source à un passage cible.
+
+Triangle
+
+Un triangle est une structure composée de trois passages A, B, C tels que :
+
+A est aligné avec B
+B est aligné avec C
+A est aligné avec C
+
+Le triangle permet de renforcer la cohérence locale des alignments en introduisant une contrainte de fermeture.
+
+Cluster d’alignments
+
+Un cluster est un ensemble de triangles connectés entre eux.
+
+Deux triangles appartiennent au même cluster s’ils partagent au moins un alignment.
+
+Un cluster représente une structure locale d’intertextualité reliant plusieurs passages et potentiellement plusieurs textes.
+
+Pipeline de construction des données
+
+Le système repose sur une chaîne de traitement structurée :
+
+Textes → Passages → Alignments → Annotations → Triangles → Clusters
+
+les textes sont segmentés en passages
+des alignments sont générés automatiquement entre passages
+les alignments sont annotés par les utilisateurs
+des triangles sont construits pour renforcer la cohérence
+les triangles sont regroupés en clusters
+🏷️ Rôle des annotations
+
+Les annotations permettent de qualifier les alignments.
+
+Chaque annotation possède un statut :
+
+OUI
+NON
+DOUTEUX
+DISCARDED
+UNREVIEWED
+
+Pour chaque alignment, seule la dernière annotation est considérée comme valide (logique de “latest annotation”).
+
+Les annotations interviennent dans :
+
+le filtrage des alignments affichés
+la cohérence des triangles
+l’état global des clusters
+🔁 Logique de propagation dans les clusters
+
+Le système permet de propager une annotation à l’échelle d’un cluster.
+
+Cette propagation s’appuie sur :
+
+un triangle de référence (ref_triangle_id)
+les métadonnées stockées dans cluster_meta
+
+Lors d’une annotation :
+
+les statuts des alignments du triangle de référence sont mis à jour
+les champs head_ab_status, head_ac_status, head_bc_status sont recalculés
+un résumé du cluster (trio_sorted) est mis à jour
+
+Cette logique permet de maintenir une cohérence globale à partir d’annotations locales.
+
+🔺 Triangle de référence
+
+Chaque cluster possède un triangle de référence (ref_triangle_id).
+
+Ce triangle sert de :
+
+point d’entrée pour l’exploration du cluster
+support principal pour l’annotation
+résumé représentatif de l’état du cluster
+
 🎯 Objectif du projet
 
 Cluster Visu est une interface web d’annotation et d’exploration de clusters d’alignements textuels issus du projet ModERN.
