@@ -1,0 +1,74 @@
+Généré le : 2026-03-16T16:25:33.015724Z
+Sauvegardé le : 2026-03-16T16:25:33.015745Z
+Projet : /data/mdejurquet/cluster_visu
+
+Nombre de fichiers sélectionnés : 17
+
+1. README.md
+   raisons : always_include
+
+2. arborescence.txt
+   raisons : always_include
+
+3. backend/app/auth.py
+   raisons : block_linked, dependency_linked
+   blocs : auth.py
+   dépendances : BLK-20260313115053-B47J -> BLK-20260313114409-HHXT
+
+4. backend/app/db.py
+   raisons : block_linked, dependency_linked
+   blocs : db.py
+   dépendances : BLK-20260313115053-B47J -> BLK-20260313114749-VOKE
+
+5. backend/app/main.py
+   raisons : block_linked, dependency_linked
+   blocs : main.py
+   dépendances : BLK-20260313115004-DJIB -> BLK-20260313120331-ISZT, BLK-20260313115053-B47J -> BLK-20260313115004-DJIB
+
+6. backend/app/settings.py
+   raisons : block_linked, dependency_linked
+   blocs : settings.py
+   dépendances : BLK-20260313115053-B47J -> BLK-20260313115034-9KLN
+
+7. block_dependencies.json
+   raisons : always_include
+
+8. block_dependencies.txt
+   raisons : always_include
+
+9. blocks_summary.json
+   raisons : always_include
+
+10. blocks_summary.txt
+   raisons : always_include
+
+11. frontend/cluster_modern/index.html
+   raisons : block_linked, dependency_linked
+   blocs : index.html
+   dépendances : BLK-20260313115944-3GDV -> BLK-20260313115613-CRZN, BLK-20260313115944-3GDV -> BLK-20260313115759-9F65, BLK-20260313120519-BXLT -> BLK-20260313115944-3GDV
+
+12. frontend/cluster_modern/package-lock.json
+   raisons : block_linked
+   blocs : package-lock.json
+
+13. frontend/cluster_modern/package.json
+   raisons : block_linked
+   blocs : package.json
+
+14. frontend/cluster_modern/schema.sql
+   raisons : block_linked, dependency_linked
+   blocs : schema.sql
+   dépendances : BLK-20260313115004-DJIB -> BLK-20260313120331-ISZT
+
+15. frontend/cluster_modern/src/main.js
+   raisons : block_linked, dependency_linked
+   blocs : main.js
+   dépendances : BLK-20260313115944-3GDV -> BLK-20260313115613-CRZN
+
+16. frontend/cluster_modern/src/style.css
+   raisons : block_linked, dependency_linked
+   blocs : style.css
+   dépendances : BLK-20260313115944-3GDV -> BLK-20260313115759-9F65
+
+17. project_summary.md
+   raisons : always_include

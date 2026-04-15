@@ -1,0 +1,348 @@
+{
+  "generated_at": "2026-03-16T16:25:33.015724Z",
+  "saved_at": "2026-03-16T16:25:33.015745Z",
+  "project_root": "/data/mdejurquet/cluster_visu",
+  "selected_paths": [
+    "README.md",
+    "arborescence.txt",
+    "backend/app/auth.py",
+    "backend/app/db.py",
+    "backend/app/main.py",
+    "backend/app/settings.py",
+    "block_dependencies.json",
+    "block_dependencies.txt",
+    "blocks_summary.json",
+    "blocks_summary.txt",
+    "frontend/cluster_modern/index.html",
+    "frontend/cluster_modern/package-lock.json",
+    "frontend/cluster_modern/package.json",
+    "frontend/cluster_modern/schema.sql",
+    "frontend/cluster_modern/src/main.js",
+    "frontend/cluster_modern/src/style.css",
+    "project_summary.md"
+  ],
+  "items": [
+    {
+      "path": "arborescence.txt",
+      "abs_path": "/data/mdejurquet/cluster_visu/arborescence.txt",
+      "exists": true,
+      "selected": true,
+      "locked": true,
+      "reasons": [
+        "always_include"
+      ],
+      "block_ids": [],
+      "block_names": [],
+      "dependency_pairs": [],
+      "priority": 100,
+      "type_hint": "tree"
+    },
+    {
+      "path": "block_dependencies.json",
+      "abs_path": "/data/mdejurquet/cluster_visu/block_dependencies.json",
+      "exists": true,
+      "selected": true,
+      "locked": true,
+      "reasons": [
+        "always_include"
+      ],
+      "block_ids": [],
+      "block_names": [],
+      "dependency_pairs": [],
+      "priority": 100,
+      "type_hint": "dependencies_json"
+    },
+    {
+      "path": "block_dependencies.txt",
+      "abs_path": "/data/mdejurquet/cluster_visu/block_dependencies.txt",
+      "exists": true,
+      "selected": true,
+      "locked": true,
+      "reasons": [
+        "always_include"
+      ],
+      "block_ids": [],
+      "block_names": [],
+      "dependency_pairs": [],
+      "priority": 100,
+      "type_hint": "dependencies_txt"
+    },
+    {
+      "path": "blocks_summary.json",
+      "abs_path": "/data/mdejurquet/cluster_visu/blocks_summary.json",
+      "exists": true,
+      "selected": true,
+      "locked": true,
+      "reasons": [
+        "always_include"
+      ],
+      "block_ids": [],
+      "block_names": [],
+      "dependency_pairs": [],
+      "priority": 100,
+      "type_hint": "blocks_json"
+    },
+    {
+      "path": "blocks_summary.txt",
+      "abs_path": "/data/mdejurquet/cluster_visu/blocks_summary.txt",
+      "exists": true,
+      "selected": true,
+      "locked": true,
+      "reasons": [
+        "always_include"
+      ],
+      "block_ids": [],
+      "block_names": [],
+      "dependency_pairs": [],
+      "priority": 100,
+      "type_hint": "blocks_txt"
+    },
+    {
+      "path": "project_summary.md",
+      "abs_path": "/data/mdejurquet/cluster_visu/project_summary.md",
+      "exists": true,
+      "selected": true,
+      "locked": true,
+      "reasons": [
+        "always_include"
+      ],
+      "block_ids": [],
+      "block_names": [],
+      "dependency_pairs": [],
+      "priority": 100,
+      "type_hint": "project_summary"
+    },
+    {
+      "path": "README.md",
+      "abs_path": "/data/mdejurquet/cluster_visu/README.md",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "always_include"
+      ],
+      "block_ids": [],
+      "block_names": [],
+      "dependency_pairs": [],
+      "priority": 95,
+      "type_hint": "readme"
+    },
+    {
+      "path": "backend/app/auth.py",
+      "abs_path": "/data/mdejurquet/cluster_visu/backend/app/auth.py",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked",
+        "dependency_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313114409-HHXT"
+      ],
+      "block_names": [
+        "auth.py"
+      ],
+      "dependency_pairs": [
+        "BLK-20260313115053-B47J -> BLK-20260313114409-HHXT"
+      ],
+      "priority": 70,
+      "type_hint": "source_code"
+    },
+    {
+      "path": "backend/app/db.py",
+      "abs_path": "/data/mdejurquet/cluster_visu/backend/app/db.py",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked",
+        "dependency_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313114749-VOKE"
+      ],
+      "block_names": [
+        "db.py"
+      ],
+      "dependency_pairs": [
+        "BLK-20260313115053-B47J -> BLK-20260313114749-VOKE"
+      ],
+      "priority": 70,
+      "type_hint": "source_code"
+    },
+    {
+      "path": "backend/app/main.py",
+      "abs_path": "/data/mdejurquet/cluster_visu/backend/app/main.py",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked",
+        "dependency_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313115004-DJIB"
+      ],
+      "block_names": [
+        "main.py"
+      ],
+      "dependency_pairs": [
+        "BLK-20260313115004-DJIB -> BLK-20260313120331-ISZT",
+        "BLK-20260313115053-B47J -> BLK-20260313115004-DJIB"
+      ],
+      "priority": 70,
+      "type_hint": "source_code"
+    },
+    {
+      "path": "backend/app/settings.py",
+      "abs_path": "/data/mdejurquet/cluster_visu/backend/app/settings.py",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked",
+        "dependency_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313115034-9KLN"
+      ],
+      "block_names": [
+        "settings.py"
+      ],
+      "dependency_pairs": [
+        "BLK-20260313115053-B47J -> BLK-20260313115034-9KLN"
+      ],
+      "priority": 70,
+      "type_hint": "source_code"
+    },
+    {
+      "path": "frontend/cluster_modern/index.html",
+      "abs_path": "/data/mdejurquet/cluster_visu/frontend/cluster_modern/index.html",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked",
+        "dependency_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313115944-3GDV"
+      ],
+      "block_names": [
+        "index.html"
+      ],
+      "dependency_pairs": [
+        "BLK-20260313115944-3GDV -> BLK-20260313115613-CRZN",
+        "BLK-20260313115944-3GDV -> BLK-20260313115759-9F65",
+        "BLK-20260313120519-BXLT -> BLK-20260313115944-3GDV"
+      ],
+      "priority": 70,
+      "type_hint": "source_code"
+    },
+    {
+      "path": "frontend/cluster_modern/package-lock.json",
+      "abs_path": "/data/mdejurquet/cluster_visu/frontend/cluster_modern/package-lock.json",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313120054-3LH1"
+      ],
+      "block_names": [
+        "package-lock.json"
+      ],
+      "dependency_pairs": [],
+      "priority": 70,
+      "type_hint": "source_code"
+    },
+    {
+      "path": "frontend/cluster_modern/package.json",
+      "abs_path": "/data/mdejurquet/cluster_visu/frontend/cluster_modern/package.json",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313120214-7AQE"
+      ],
+      "block_names": [
+        "package.json"
+      ],
+      "dependency_pairs": [],
+      "priority": 70,
+      "type_hint": "source_code"
+    },
+    {
+      "path": "frontend/cluster_modern/schema.sql",
+      "abs_path": "/data/mdejurquet/cluster_visu/frontend/cluster_modern/schema.sql",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked",
+        "dependency_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313120331-ISZT"
+      ],
+      "block_names": [
+        "schema.sql"
+      ],
+      "dependency_pairs": [
+        "BLK-20260313115004-DJIB -> BLK-20260313120331-ISZT"
+      ],
+      "priority": 70,
+      "type_hint": "source_code"
+    },
+    {
+      "path": "frontend/cluster_modern/src/main.js",
+      "abs_path": "/data/mdejurquet/cluster_visu/frontend/cluster_modern/src/main.js",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked",
+        "dependency_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313115613-CRZN"
+      ],
+      "block_names": [
+        "main.js"
+      ],
+      "dependency_pairs": [
+        "BLK-20260313115944-3GDV -> BLK-20260313115613-CRZN"
+      ],
+      "priority": 70,
+      "type_hint": "source_code"
+    },
+    {
+      "path": "frontend/cluster_modern/src/style.css",
+      "abs_path": "/data/mdejurquet/cluster_visu/frontend/cluster_modern/src/style.css",
+      "exists": true,
+      "selected": true,
+      "locked": false,
+      "reasons": [
+        "block_linked",
+        "dependency_linked"
+      ],
+      "block_ids": [
+        "BLK-20260313115759-9F65"
+      ],
+      "block_names": [
+        "style.css"
+      ],
+      "dependency_pairs": [
+        "BLK-20260313115944-3GDV -> BLK-20260313115759-9F65"
+      ],
+      "priority": 70,
+      "type_hint": "source_code"
+    }
+  ]
+}
