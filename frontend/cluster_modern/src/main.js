@@ -1,3 +1,5 @@
+import { renderAlignmentsPage } from "./alignments_page.js";
+
 function getToken() {
   return localStorage.getItem("token") || "";
 }
@@ -246,7 +248,9 @@ function setApp(html) {
 }
 
 function getRoute() {
-  const h = window.location.hash || "#/";
+  const h = window.location.hash || "";
+  if (!h) return null; // page d'accueil sans hash
+
   const parts = h.replace(/^#\/?/, "").split("/").filter(Boolean);
   return parts;
 }
@@ -263,19 +267,27 @@ function getCurrentClusterIdFromDOM() {
  * Menus prédéfinis (B2)
  * value = ce qu’on envoie au backend (format "a,b,c")
  */
-const TRIO_PRESETS = [
-  { label: "Tous les trios", value: "" },
-  { label: "discarded-discarded-discarded", value: "discarded,discarded,discarded" },
-  { label: "unreviewed-unreviewed-unreviewed", value: "unreviewed,unreviewed,unreviewed" },
-  { label: "discarded-discarded-unreviewed", value: "discarded,discarded,unreviewed" },
-  { label: "oui-non-unreviewed", value: "oui,non,unreviewed" },
-  { label: "oui-oui-oui", value: "oui,oui,oui" },
-  { label: "non-non-non", value: "non,non,non" },
-  { label: "douteux-douteux-douteux", value: "douteux,douteux,douteux" },
-  { label: "douteux-non-non", value: "douteux,non,non" },
-  { label: "douteux-unreviewed-unreviewed", value: "douteux,unreviewed,unreviewed" },
-  { label: "douteux-discarded-discarded", value: "douteux,discarded,discarded" },
-];
+const TRIO_STATUSES = ["discarded", "douteux", "non", "oui", "unreviewed"];
+
+function generateTrioPresets() {
+  const presets = [{ label: "Tous les trios", value: "" }];
+
+  for (let i = 0; i < TRIO_STATUSES.length; i++) {
+    for (let j = i; j < TRIO_STATUSES.length; j++) {
+      for (let k = j; k < TRIO_STATUSES.length; k++) {
+        const trio = [TRIO_STATUSES[i], TRIO_STATUSES[j], TRIO_STATUSES[k]];
+        presets.push({
+          label: trio.map(s => s.toUpperCase()).join(" - "),
+          value: trio.join(","),
+        });
+      }
+    }
+  }
+
+  return presets;
+}
+
+const TRIO_PRESETS = generateTrioPresets();
 
 function getSelectedTrio() {
   const params = new URLSearchParams(window.location.search);
@@ -296,12 +308,15 @@ async function renderClustersPage() {
     <div class="wrap">
       <h1>Clusters</h1>
 
-      <!-- 🔐 Bandeau utilisateur -->
+      <!-- 🔐 Bandeau utilisateur + navigation -->
       <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
         <div class="muted small">
           Connecté : <b>${htmlEscape(getUserEmail() || "—")}</b>
         </div>
-        <div>
+
+        <div style="display:flex; gap:12px;">
+          <a href="/" class="btn">Accueil</a>
+          <a href="#/alignments" class="btn">Alignments</a>
           <a href="#/login">Changer d’utilisateur</a>
         </div>
       </div>
@@ -850,12 +865,41 @@ async function renderClusterDetailPage(clusterId) {
   attachPropagateCluster();
 }
 
+function renderHomePage() {
+  setApp(`
+    <div class="wrap">
+      <h1>Accueil</h1>
+      <p class="muted">Choisissez un mode d’exploration :</p>
 
+      <div class="home-grid">
+        <a class="home-card" href="#/">
+          <div class="home-card-title">Cluster</div>
+          <div class="home-card-text">
+            Explorer les clusters, leurs triangles, passages et annotations.
+          </div>
+        </a>
+
+        <a class="home-card" href="#/alignments">
+          <div class="home-card-title">Alignment</div>
+          <div class="home-card-text">
+            Rechercher et annoter les alignments avec filtres avancés.
+          </div>
+        </a>
+      </div>
+    </div>
+  `);
+}
 
 async function router() {
   const parts = getRoute();
 
   try {
+    // 0) Accueil sans hash
+    if (parts === null) {
+      renderHomePage();
+      return;
+    }
+
     // 1) Page "login" toujours accessible
     if (parts[0] === "login") {
       await renderLoginPage();
@@ -865,20 +909,26 @@ async function router() {
     // 2) Si pas de token => on nettoie l'état local et on force le login
     if (!getToken()) {
       clearToken();
-      setUserEmail(""); // ou localStorage.removeItem("user_email")
+      setUserEmail("");
       if (window.location.hash !== "#/login") {
         window.location.hash = "#/login";
       }
       return;
     }
 
-    // 3) Page principale : liste des clusters
+    // 3) Page alignments
+    if (parts[0] === "alignments") {
+      await renderAlignmentsPage(document.querySelector("#app"));
+      return;
+    }
+
+    // 4) Page principale : liste des clusters
     if (parts.length === 0) {
       await renderClustersPage();
       return;
     }
 
-    // 4) Page détail d’un cluster
+    // 5) Page détail d’un cluster
     if (parts[0] === "cluster" && parts[1]) {
       const clusterId = Number(parts[1]);
       if (!Number.isFinite(clusterId)) throw new Error("cluster_id invalide");
@@ -886,14 +936,14 @@ async function router() {
       return;
     }
 
-    // 5) Fallback
+    // 6) Fallback
     window.location.hash = "#/";
   } catch (e) {
     setApp(`
       <div class="wrap">
         <h1>Erreur</h1>
         <pre>${htmlEscape(e)}</pre>
-        <p><a href="#/">Retour</a></p>
+        <p><a href="/">Retour</a></p>
       </div>
     `);
   }
