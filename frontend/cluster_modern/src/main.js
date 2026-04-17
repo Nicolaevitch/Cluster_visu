@@ -27,6 +27,18 @@ async function apiGet(path) {
   return r.json();
 }
 
+function getSelectedTrioFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("trio") || "";
+}
+
+async function fetchNextCluster(clusterId, trio) {
+  const url = trio
+    ? `/api/clusters/${clusterId}/next?trio=${encodeURIComponent(trio)}`
+    : `/api/clusters/${clusterId}/next`;
+  return apiGet(url);
+}
+
 async function fetchClustersTrioSummary() {
   return apiGet("/api/clusters/trio_summary");
 }
@@ -808,8 +820,10 @@ function buildVertexLabels(head, metaByPassageId) {
 async function renderClusterDetailPage(clusterId) {
   setApp(`
     <div class="wrap" id="clusterPage" data-cluster-id="${htmlEscape(clusterId)}">
-      <div style="margin-bottom:12px;">
+      <div style="margin-bottom:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         <a href="#/">&larr; Retour</a>
+        <button id="btnNextCluster" class="btn" type="button">Next cluster</button>
+        <span id="nextClusterMsg" class="muted small"></span>
       </div>
 
       <h1>Cluster ${htmlEscape(clusterId)}</h1>
@@ -921,6 +935,41 @@ async function renderClusterDetailPage(clusterId) {
   // ✅ 8) Bind des boutons/inputs UNE FOIS que le DOM existe
   attachAnnotEditors();
   attachPropagateCluster();
+  attachNextClusterButton(clusterId);
+}
+
+
+function attachNextClusterButton(clusterId) {
+  const btn = document.querySelector("#btnNextCluster");
+  const msg = document.querySelector("#nextClusterMsg");
+  if (!btn) return;
+
+  if (btn.__bound_next_cluster) return;
+  btn.__bound_next_cluster = true;
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    if (msg) msg.textContent = "Recherche du cluster suivant...";
+
+    try {
+      const trio = getSelectedTrioFromUrl();
+      const res = await fetchNextCluster(clusterId, trio);
+
+      if (res.next_cluster_id) {
+        window.location.hash = `#/cluster/${res.next_cluster_id}`;
+      } else {
+        if (msg) {
+          msg.textContent = trio
+            ? "Aucun cluster suivant dans ce trio."
+            : "Aucun cluster suivant.";
+        }
+      }
+    } catch (e) {
+      if (msg) msg.textContent = String(e);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 }
 
 function renderHomePage() {
