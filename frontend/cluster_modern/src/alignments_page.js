@@ -207,7 +207,7 @@ export async function renderAlignmentsPage(app) {
 
   function renderPageSkeleton() {
     app.innerHTML = `
-      <div class="wrap">
+      <div class="wrap alignment-page">
         <div style="margin-bottom:12px;">
           <a href="#/">&larr; Retour</a>
         </div>
