@@ -26,6 +26,47 @@ async function apiGet(path) {
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
   return r.json();
 }
+
+async function fetchClustersTrioSummary() {
+  return apiGet("/api/clusters/trio_summary");
+}
+
+function renderClustersTrioSummaryTable(items) {
+  if (!items || items.length === 0) {
+    return `
+      <div class="summary-card">
+        <h2>Récapitulatif des clusters par trio</h2>
+        <div class="muted small">Aucune donnée.</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="summary-card">
+      <h2>Récapitulatif des clusters par trio</h2>
+
+      <div class="summary-scroll-box">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>trio_sorted</th>
+              <th>nb_clusters</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(r => `
+              <tr>
+                <td><b>${htmlEscape(r.trio_sorted)}</b></td>
+                <td>${htmlEscape(r.nb_clusters)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
 async function renderLoginPage() {
   setApp(`
     <div class="wrap">
@@ -321,6 +362,8 @@ async function renderClustersPage() {
         </div>
       </div>
 
+      <div id="trioSummary"></div>
+
       <div class="row">
         <label for="trioSelect"><b>Filtre trio annotation</b></label>
         <select id="trioSelect"></select>
@@ -330,6 +373,20 @@ async function renderClustersPage() {
       <div id="table"></div>
     </div>
   `);
+
+  // Charger le récapitulatif global par trio
+  try {
+    const trioSummary = await fetchClustersTrioSummary();
+    document.querySelector("#trioSummary").innerHTML =
+      renderClustersTrioSummaryTable(trioSummary.items || []);
+  } catch (e) {
+    document.querySelector("#trioSummary").innerHTML = `
+      <div class="summary-card">
+        <h2>Récapitulatif des clusters par trio</h2>
+        <div class="muted small">Impossible de charger le tableau.</div>
+      </div>
+    `;
+  }
 
   // Remplit le select
   const select = document.querySelector("#trioSelect");
@@ -403,6 +460,7 @@ async function renderClustersPage() {
  *
  * Si l’endpoint n’existe pas encore, la page affichera "—" partout sauf cluster_id.
  */
+
 function renderClusterTopSummaryTable(summary) {
   return `
     <div class="summary-card">
