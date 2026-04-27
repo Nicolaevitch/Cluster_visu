@@ -1,3 +1,5 @@
+import { renderAlignmentsPage } from "./alignments_page.js";
+
 function getToken() {
   return localStorage.getItem("token") || "";
 }
@@ -24,6 +26,59 @@ async function apiGet(path) {
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
   return r.json();
 }
+
+function getSelectedTrioFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("trio") || "";
+}
+
+async function fetchNextCluster(clusterId, trio) {
+  const url = trio
+    ? `/api/clusters/${clusterId}/next?trio=${encodeURIComponent(trio)}`
+    : `/api/clusters/${clusterId}/next`;
+  return apiGet(url);
+}
+
+async function fetchClustersTrioSummary() {
+  return apiGet("/api/clusters/trio_summary");
+}
+
+function renderClustersTrioSummaryTable(items) {
+  if (!items || items.length === 0) {
+    return `
+      <div class="summary-card">
+        <h2>Récapitulatif des clusters par trio</h2>
+        <div class="muted small">Aucune donnée.</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="summary-card">
+      <h2>Récapitulatif des clusters par trio</h2>
+
+      <div class="summary-scroll-box">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>trio_sorted</th>
+              <th>nb_clusters</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(r => `
+              <tr>
+                <td><b>${htmlEscape(r.trio_sorted)}</b></td>
+                <td>${htmlEscape(r.nb_clusters)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
 async function renderLoginPage() {
   setApp(`
     <div class="wrap">
@@ -158,6 +213,7 @@ function attachAnnotEditors() {
     btn.addEventListener("click", () => {
       const box = btn.closest(".annot-box");
       if (!box) return;
+
       const editor = box.querySelector(".annot-editor");
       if (!editor) return;
 
@@ -193,7 +249,7 @@ function attachAnnotEditors() {
         // Refresh latest pour ré-afficher
         const latest = await fetchAlignmentAnnotationsLatest(aid);
 
-        // Rafraîchir le tableau des annotations (bloc ann-block)
+        // Rafraîchir le tableau des annotations
         const annBlock = box.closest(".align-body")?.querySelector(".ann-block");
         if (annBlock) {
           annBlock.innerHTML = `
@@ -202,20 +258,26 @@ function attachAnnotEditors() {
           `;
         }
 
-        // Remplacer l'éditeur par une version recalculée (mon statut / commentaire)
+        // Remplacer l'éditeur par une version recalculée
         box.outerHTML = renderAnnotEditor(aid, label, latest.items || []);
 
         // Re-bind sur le nouveau DOM
         attachAnnotEditors();
 
-        // 🔄 NEW: Rafraîchir le bloc "Répartition des trios"
+        // Rafraîchir le bloc "Répartition des trios"
         const clusterId = getCurrentClusterIdFromDOM();
         if (clusterId) {
           try {
             const dist = await fetchClusterTrioDistribution(clusterId);
             const trioDistEl = document.querySelector("#trioDist");
+
             if (trioDistEl) {
               trioDistEl.innerHTML = renderTrioDistributionBlock(dist.items || []);
+
+              // Important : rebrancher les boutons "Voir les id triangles"
+              if (typeof attachTriangleIdsButtons === "function") {
+                attachTriangleIdsButtons();
+              }
             }
           } catch {
             // on ne bloque pas l'UX si ça échoue
@@ -246,7 +308,9 @@ function setApp(html) {
 }
 
 function getRoute() {
-  const h = window.location.hash || "#/";
+  const h = window.location.hash || "";
+  if (!h) return null; // page d'accueil sans hash
+
   const parts = h.replace(/^#\/?/, "").split("/").filter(Boolean);
   return parts;
 }
@@ -263,19 +327,27 @@ function getCurrentClusterIdFromDOM() {
  * Menus prédéfinis (B2)
  * value = ce qu’on envoie au backend (format "a,b,c")
  */
-const TRIO_PRESETS = [
-  { label: "Tous les trios", value: "" },
-  { label: "discarded-discarded-discarded", value: "discarded,discarded,discarded" },
-  { label: "unreviewed-unreviewed-unreviewed", value: "unreviewed,unreviewed,unreviewed" },
-  { label: "discarded-discarded-unreviewed", value: "discarded,discarded,unreviewed" },
-  { label: "oui-non-unreviewed", value: "oui,non,unreviewed" },
-  { label: "oui-oui-oui", value: "oui,oui,oui" },
-  { label: "non-non-non", value: "non,non,non" },
-  { label: "douteux-douteux-douteux", value: "douteux,douteux,douteux" },
-  { label: "douteux-non-non", value: "douteux,non,non" },
-  { label: "douteux-unreviewed-unreviewed", value: "douteux,unreviewed,unreviewed" },
-  { label: "douteux-discarded-discarded", value: "douteux,discarded,discarded" },
-];
+const TRIO_STATUSES = ["discarded", "douteux", "non", "oui", "unreviewed"];
+
+function generateTrioPresets() {
+  const presets = [{ label: "Tous les trios", value: "" }];
+
+  for (let i = 0; i < TRIO_STATUSES.length; i++) {
+    for (let j = i; j < TRIO_STATUSES.length; j++) {
+      for (let k = j; k < TRIO_STATUSES.length; k++) {
+        const trio = [TRIO_STATUSES[i], TRIO_STATUSES[j], TRIO_STATUSES[k]];
+        presets.push({
+          label: trio.map(s => s.toUpperCase()).join(" - "),
+          value: trio.join(","),
+        });
+      }
+    }
+  }
+
+  return presets;
+}
+
+const TRIO_PRESETS = generateTrioPresets();
 
 function getSelectedTrio() {
   const params = new URLSearchParams(window.location.search);
@@ -289,81 +361,6 @@ function setSelectedTrio(trioValue) {
   history.replaceState({}, "", url.toString());
 }
 
-async function fetchStatsOverview() {
-  return apiGet("/api/stats/overview");
-}
-
-function renderOverviewBlock(data) {
-  const totals = data?.totals || {};
-  const align = data?.alignments_by_status || [];
-  const clusters = data?.clusters_by_trio_sorted || [];
-
-  const alignRows = align.map(r => `
-    <tr>
-      <td><b>${htmlEscape(r.status)}</b></td>
-      <td style="text-align:right;">${htmlEscape(r.alignments_count)}</td>
-    </tr>
-  `).join("");
-
-  const clusterRows = clusters.map(r => `
-    <tr>
-      <td><b>${htmlEscape(r.trio_sorted)}</b></td>
-      <td style="text-align:right;">${htmlEscape(r.clusters_count)}</td>
-    </tr>
-  `).join("");
-
-  // hauteur ~10 lignes (à ajuster si tu veux plus/moins)
-  const SCROLL_MAX_H = "340px";
-
-  return `
-    <details class="dist-details" open style="margin:12px 0;">
-      <summary><b>État des comptes</b></summary>
-
-      <div class="row" style="gap:12px; align-items:flex-start; flex-wrap:wrap; margin-top:10px;">
-        <div style="flex:1; min-width:320px;">
-          <div class="muted small" style="margin-bottom:6px;">
-            <b>Alignments</b> — total: ${htmlEscape(totals.alignments ?? "—")}
-          </div>
-
-          <div style="max-height:${SCROLL_MAX_H}; overflow-y:auto; border:1px solid #ddd; border-radius:8px;">
-            <table class="dist-table" style="margin:0;">
-              <thead>
-                <tr>
-                  <th style="position:sticky; top:0; background:#fff; z-index:1;">Status (dernier)</th>
-                  <th style="position:sticky; top:0; background:#fff; z-index:1; text-align:right;">Nb alignments</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${alignRows || `<tr><td colspan="2" class="muted small">Aucune donnée.</td></tr>`}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div style="flex:1; min-width:320px;">
-          <div class="muted small" style="margin-bottom:6px;">
-            <b>Clusters</b> — total: ${htmlEscape(totals.clusters ?? "—")}
-          </div>
-
-          <div style="max-height:${SCROLL_MAX_H}; overflow-y:auto; border:1px solid #ddd; border-radius:8px;">
-            <table class="dist-table" style="margin:0;">
-              <thead>
-                <tr>
-                  <th style="position:sticky; top:0; background:#fff; z-index:1;">trio_sorted</th>
-                  <th style="position:sticky; top:0; background:#fff; z-index:1; text-align:right;">Nb clusters</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${clusterRows || `<tr><td colspan="2" class="muted small">Aucune donnée.</td></tr>`}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </details>
-  `;
-}
-
 async function renderClustersPage() {
   const currentTrio = getSelectedTrio();
 
@@ -371,18 +368,20 @@ async function renderClustersPage() {
     <div class="wrap">
       <h1>Clusters</h1>
 
-      <!-- 🔐 Bandeau utilisateur -->
+      <!-- 🔐 Bandeau utilisateur + navigation -->
       <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
         <div class="muted small">
           Connecté : <b>${htmlEscape(getUserEmail() || "—")}</b>
         </div>
-        <div>
+
+        <div style="display:flex; gap:12px;">
+          <a href="/" class="btn">Accueil</a>
+          <a href="#/alignments" class="btn">Alignments</a>
           <a href="#/login">Changer d’utilisateur</a>
         </div>
       </div>
 
-      <!-- 🧾 Dashboard -->
-      <div id="overview" class="muted small">Chargement des stats...</div>
+      <div id="trioSummary"></div>
 
       <div class="row">
         <label for="trioSelect"><b>Filtre trio annotation</b></label>
@@ -393,13 +392,20 @@ async function renderClustersPage() {
       <div id="table"></div>
     </div>
   `);
-  // Charger le dashboard
-try {
-  const overview = await fetchStatsOverview();
-  document.querySelector("#overview").innerHTML = renderOverviewBlock(overview);
-} catch (e) {
-  document.querySelector("#overview").textContent = `Stats indisponibles: ${String(e)}`;
-}
+
+  // Charger le récapitulatif global par trio
+  try {
+    const trioSummary = await fetchClustersTrioSummary();
+    document.querySelector("#trioSummary").innerHTML =
+      renderClustersTrioSummaryTable(trioSummary.items || []);
+  } catch (e) {
+    document.querySelector("#trioSummary").innerHTML = `
+      <div class="summary-card">
+        <h2>Récapitulatif des clusters par trio</h2>
+        <div class="muted small">Impossible de charger le tableau.</div>
+      </div>
+    `;
+  }
 
   // Remplit le select
   const select = document.querySelector("#trioSelect");
@@ -473,6 +479,7 @@ try {
  *
  * Si l’endpoint n’existe pas encore, la page affichera "—" partout sauf cluster_id.
  */
+
 function renderClusterTopSummaryTable(summary) {
   return `
     <div class="summary-card">
@@ -589,6 +596,12 @@ async function fetchClusterTrioDistribution(clusterId) {
   return apiGet(`/api/clusters/${clusterId}/trio_distribution`);
 }
 
+async function fetchTriangleIdsForTrio(clusterId, trioSorted) {
+  return apiGet(
+    `/api/clusters/${clusterId}/trio/${encodeURIComponent(trioSorted)}/triangle_ids?limit=200`
+  );
+}
+
 function renderPropagateBlock() {
   return `
     <details class="prop-details" open style="margin-top:10px;">
@@ -698,6 +711,55 @@ function attachPropagateCluster() {
   });
 }
 
+function attachTriangleIdsButtons() {
+  document.querySelectorAll(".js-load-triangle-ids").forEach((btn) => {
+    if (btn.__bound_triangle_ids) return;
+    btn.__bound_triangle_ids = true;
+
+    btn.addEventListener("click", async () => {
+      const clusterId = getCurrentClusterIdFromDOM();
+      const trio = btn.getAttribute("data-trio");
+      const targetId = btn.getAttribute("data-target");
+      const box = document.getElementById(targetId);
+
+      if (!clusterId || !trio || !box) return;
+
+      const isOpen = box.style.display !== "none";
+      box.style.display = isOpen ? "none" : "block";
+
+      if (isOpen) return;
+
+      box.innerHTML = `<div class="muted small">Chargement...</div>`;
+
+      try {
+        const data = await fetchTriangleIdsForTrio(clusterId, trio);
+        const ids = data.items || [];
+
+        if (ids.length === 0) {
+          box.innerHTML = `<div class="muted small">Aucun triangle.</div>`;
+          return;
+        }
+
+        box.innerHTML = `
+          <div class="triangle-ids-scroll">
+            ${ids.map(x => `
+              <div>
+                triangle_id :
+                <b>${htmlEscape(x.id_triangle)}</b>
+              </div>
+            `).join("")}
+          </div>
+          <div class="muted small" style="margin-top:4px;">
+            ${ids.length} id(s) chargé(s), affichage avec défilement.
+          </div>
+        `;
+      } catch (e) {
+        box.innerHTML = `<pre>${htmlEscape(String(e))}</pre>`;
+      }
+    });
+  });
+}
+
 function renderTrioDistributionBlock(items) {
   if (!items || items.length === 0) {
     return `
@@ -717,15 +779,33 @@ function renderTrioDistributionBlock(items) {
           <tr>
             <th>trio_sorted</th>
             <th>nb triangles</th>
+            <th>IDs triangles</th>
           </tr>
         </thead>
         <tbody>
-          ${items.map(r => `
-            <tr>
-              <td><b>${htmlEscape(r.trio_sorted)}</b></td>
-              <td>${htmlEscape(r.triangles_count)}</td>
-            </tr>
-          `).join("")}
+          ${items.map((r, idx) => {
+            const trio = r.trio_sorted || "";
+            const safeId = `triIds_${idx}_${String(trio).replaceAll(/[^a-zA-Z0-9]/g, "_")}`;
+
+            return `
+              <tr>
+                <td><b>${htmlEscape(trio)}</b></td>
+                <td>${htmlEscape(r.triangles_count)}</td>
+                <td>
+                  <button
+                    class="btn small js-load-triangle-ids"
+                    type="button"
+                    data-trio="${htmlEscape(trio)}"
+                    data-target="${htmlEscape(safeId)}"
+                  >
+                    Voir les id triangles
+                  </button>
+
+                  <div id="${htmlEscape(safeId)}" class="triangle-ids-box" style="display:none; margin-top:8px;"></div>
+                </td>
+              </tr>
+            `;
+          }).join("")}
         </tbody>
       </table>
     </details>
@@ -820,8 +900,10 @@ function buildVertexLabels(head, metaByPassageId) {
 async function renderClusterDetailPage(clusterId) {
   setApp(`
     <div class="wrap" id="clusterPage" data-cluster-id="${htmlEscape(clusterId)}">
-      <div style="margin-bottom:12px;">
+      <div style="margin-bottom:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         <a href="#/">&larr; Retour</a>
+        <button id="btnNextCluster" class="btn" type="button">Next cluster</button>
+        <span id="nextClusterMsg" class="muted small"></span>
       </div>
 
       <h1>Cluster ${htmlEscape(clusterId)}</h1>
@@ -933,14 +1015,79 @@ async function renderClusterDetailPage(clusterId) {
   // ✅ 8) Bind des boutons/inputs UNE FOIS que le DOM existe
   attachAnnotEditors();
   attachPropagateCluster();
+  attachNextClusterButton(clusterId);
+  attachTriangleIdsButtons();
 }
 
 
+function attachNextClusterButton(clusterId) {
+  const btn = document.querySelector("#btnNextCluster");
+  const msg = document.querySelector("#nextClusterMsg");
+  if (!btn) return;
+
+  if (btn.__bound_next_cluster) return;
+  btn.__bound_next_cluster = true;
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    if (msg) msg.textContent = "Recherche du cluster suivant...";
+
+    try {
+      const trio = getSelectedTrioFromUrl();
+      const res = await fetchNextCluster(clusterId, trio);
+
+      if (res.next_cluster_id) {
+        window.location.hash = `#/cluster/${res.next_cluster_id}`;
+      } else {
+        if (msg) {
+          msg.textContent = trio
+            ? "Aucun cluster suivant dans ce trio."
+            : "Aucun cluster suivant.";
+        }
+      }
+    } catch (e) {
+      if (msg) msg.textContent = String(e);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+function renderHomePage() {
+  setApp(`
+    <div class="wrap">
+      <h1>Accueil</h1>
+      <p class="muted">Choisissez un mode d’exploration :</p>
+
+      <div class="home-grid">
+        <a class="home-card" href="#/">
+          <div class="home-card-title">Cluster</div>
+          <div class="home-card-text">
+            Explorer les clusters, leurs triangles, passages et annotations.
+          </div>
+        </a>
+
+        <a class="home-card" href="#/alignments">
+          <div class="home-card-title">Alignment</div>
+          <div class="home-card-text">
+            Rechercher et annoter les alignments avec filtres avancés.
+          </div>
+        </a>
+      </div>
+    </div>
+  `);
+}
 
 async function router() {
   const parts = getRoute();
 
   try {
+    // 0) Accueil sans hash
+    if (parts === null) {
+      renderHomePage();
+      return;
+    }
+
     // 1) Page "login" toujours accessible
     if (parts[0] === "login") {
       await renderLoginPage();
@@ -950,20 +1097,26 @@ async function router() {
     // 2) Si pas de token => on nettoie l'état local et on force le login
     if (!getToken()) {
       clearToken();
-      setUserEmail(""); // ou localStorage.removeItem("user_email")
+      setUserEmail("");
       if (window.location.hash !== "#/login") {
         window.location.hash = "#/login";
       }
       return;
     }
 
-    // 3) Page principale : liste des clusters
+    // 3) Page alignments
+    if (parts[0] === "alignments") {
+      await renderAlignmentsPage(document.querySelector("#app"));
+      return;
+    }
+
+    // 4) Page principale : liste des clusters
     if (parts.length === 0) {
       await renderClustersPage();
       return;
     }
 
-    // 4) Page détail d’un cluster
+    // 5) Page détail d’un cluster
     if (parts[0] === "cluster" && parts[1]) {
       const clusterId = Number(parts[1]);
       if (!Number.isFinite(clusterId)) throw new Error("cluster_id invalide");
@@ -971,14 +1124,14 @@ async function router() {
       return;
     }
 
-    // 5) Fallback
+    // 6) Fallback
     window.location.hash = "#/";
   } catch (e) {
     setApp(`
       <div class="wrap">
         <h1>Erreur</h1>
         <pre>${htmlEscape(e)}</pre>
-        <p><a href="#/">Retour</a></p>
+        <p><a href="/">Retour</a></p>
       </div>
     `);
   }

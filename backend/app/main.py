@@ -11,10 +11,12 @@ from .auth import get_current_user_dep
 
 
 from .db import get_db
+from .alignments_page import router as alignments_router
 
 app = FastAPI(title="Cluster visu (POC)")
 
 app.include_router(auth_router)
+app.include_router(alignments_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -103,6 +105,18 @@ def list_clusters(
     rows = db.execute(sql, params).mappings().all()
     return {"limit": limit, "offset": offset, "trio": trio, "items": list(rows)}
 
+@app.get("/clusters/trio_summary")
+def clusters_trio_summary(db: Session = Depends(get_db)):
+    sql = text("""
+        SELECT
+          COALESCE(trio_sorted, 'UNREVIEWED-UNREVIEWED-UNREVIEWED') AS trio_sorted,
+          COUNT(*)::int AS nb_clusters
+        FROM cluster_meta
+        GROUP BY trio_sorted
+        ORDER BY nb_clusters DESC, trio_sorted ASC
+    """)
+    rows = db.execute(sql).mappings().all()
+    return {"items": list(rows)}
 
 @app.get("/clusters/{cluster_id}/triangles")
 def cluster_triangles(
@@ -367,6 +381,27 @@ GROUP BY p.passage_id, p.text_id, t.title, t.filename, t.first_publication_date,
         raise HTTPException(status_code=404, detail="passage_id not found")
     return dict(row)
 
+@app.get("/alignments/{alignment_id}/annotations/history")
+def alignment_annotations_history(alignment_id: int, db: Session = Depends(get_db)):
+    sql = text("""
+SELECT
+  a.annotation_id,
+  a.alignment_id,
+  a.user_id,
+  u.email,
+  a.status,
+  a.comment,
+  a.annotation_metadata,
+  a.created_at,
+  a.updated_at
+FROM public.annotations a
+JOIN public.users u ON u.user_id = a.user_id
+WHERE a.alignment_id = :alignment_id
+ORDER BY a.created_at DESC, a.updated_at DESC, a.annotation_id DESC
+    """)
+    rows = db.execute(sql, {"alignment_id": alignment_id}).mappings().all()
+    return {"alignment_id": alignment_id, "items": list(rows)}
+
 @app.get("/alignments/{alignment_id}/annotations/latest")
 def alignment_annotations_latest(alignment_id: int, db: Session = Depends(get_db)):
     sql = text("""
@@ -569,6 +604,78 @@ ORDER BY triangles_count DESC, trio_sorted ASC
     rows = db.execute(sql, {"cid": cluster_id}).mappings().all()
     return {"cluster_id": cluster_id, "items": list(rows)}
 
+@app.get("/clusters/{cluster_id}/trio/{trio_sorted}/triangle_ids")
+def cluster_trio_triangle_ids(
+    cluster_id: int,
+    trio_sorted: str,
+    limit: int = Query(200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+):
+    sql = text("""
+WITH tri AS (
+  SELECT
+    id_triangle,
+    alignment_ab_id AS ab,
+    alignment_ac_id AS ac,
+    alignment_bc_id AS bc
+  FROM triangles
+  WHERE cluster_id = :cid
+),
+alns AS (
+  SELECT ab AS alignment_id FROM tri
+  UNION
+  SELECT ac FROM tri
+  UNION
+  SELECT bc FROM tri
+),
+latest AS (
+  SELECT DISTINCT ON (a.alignment_id)
+    a.alignment_id,
+    upper(a.status::text) AS status
+  FROM annotations a
+  JOIN alns x ON x.alignment_id = a.alignment_id
+  ORDER BY a.alignment_id, a.updated_at DESC, a.created_at DESC, a.annotation_id DESC
+),
+per_triangle AS (
+  SELECT
+    t.id_triangle,
+    upper(
+      array_to_string(
+        (
+          SELECT array_agg(s ORDER BY s)
+          FROM unnest(ARRAY[
+            COALESCE((SELECT status FROM latest WHERE alignment_id = t.ab), 'UNREVIEWED'),
+            COALESCE((SELECT status FROM latest WHERE alignment_id = t.ac), 'UNREVIEWED'),
+            COALESCE((SELECT status FROM latest WHERE alignment_id = t.bc), 'UNREVIEWED')
+          ]) s
+        ),
+        '-'
+      )
+    ) AS trio_sorted
+  FROM tri t
+)
+SELECT id_triangle
+FROM per_triangle
+WHERE trio_sorted = upper(:trio_sorted)
+ORDER BY id_triangle ASC
+LIMIT :limit
+    """)
+
+    rows = db.execute(
+        sql,
+        {
+            "cid": cluster_id,
+            "trio_sorted": trio_sorted,
+            "limit": limit,
+        },
+    ).mappings().all()
+
+    return {
+        "cluster_id": cluster_id,
+        "trio_sorted": trio_sorted.upper(),
+        "items": list(rows),
+    }
+
 @app.post("/clusters/{cluster_id}/propagate")
 def propagate_cluster_annotations(
     cluster_id: int,
@@ -675,43 +782,69 @@ WHERE cluster_id = :cid
         "cluster_meta_updated": True,
     }
 
-@app.get("/stats/overview")
-def stats_overview(db: Session = Depends(get_db)):
-    sql_align = text("""
-WITH latest AS (
-  SELECT DISTINCT ON (a.alignment_id)
-    a.alignment_id,
-    upper(a.status::text) AS status
-  FROM public.annotations a
-  ORDER BY a.alignment_id, a.updated_at DESC, a.created_at DESC, a.annotation_id DESC
-)
-SELECT
-  COALESCE(latest.status, 'UNREVIEWED') AS status,
-  COUNT(*)::bigint AS alignments_count
-FROM public.alignments al
-LEFT JOIN latest ON latest.alignment_id = al.alignment_id
-GROUP BY 1
-ORDER BY alignments_count DESC, status ASC
+
+@app.get("/clusters/{cluster_id}/next")
+def next_cluster(
+    cluster_id: int,
+    trio: Optional[str] = Query(
+        None,
+        description="Filtre trio_sorted (ordre libre). Ex: oui,non,unreviewed",
+    ),
+    db: Session = Depends(get_db),
+):
+    try:
+        trio_key = normalize_trio(trio)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Vérifie que le cluster courant existe
+    current = db.execute(
+        text("""
+            SELECT cluster_id, triangles_count, trio_sorted
+            FROM cluster_meta
+            WHERE cluster_id = :cluster_id
+        """),
+        {"cluster_id": cluster_id},
+    ).mappings().first()
+
+    if not current:
+        raise HTTPException(status_code=404, detail="cluster_id introuvable")
+
+    sql = text("""
+        WITH filtered AS (
+            SELECT
+                cluster_id,
+                triangles_count,
+                trio_sorted
+            FROM cluster_meta
+            WHERE (:trio_is_null = true OR lower(trio_sorted) = :trio_key)
+        )
+        SELECT cluster_id
+        FROM filtered
+        WHERE
+            (
+                triangles_count < :current_triangles
+                OR (
+                    triangles_count = :current_triangles
+                    AND cluster_id > :current_cluster_id
+                )
+            )
+        ORDER BY triangles_count DESC, cluster_id ASC
+        LIMIT 1
     """)
 
-    sql_clusters = text("""
-SELECT
-  COALESCE(NULLIF(upper(trio_sorted), ''), 'UNREVIEWED-UNREVIEWED-UNREVIEWED') AS trio_sorted,
-  COUNT(*)::bigint AS clusters_count
-FROM public.cluster_meta
-GROUP BY 1
-ORDER BY clusters_count DESC, trio_sorted ASC
-    """)
-
-    align_rows = db.execute(sql_align).mappings().all()
-    cluster_rows = db.execute(sql_clusters).mappings().all()
-
-    # Totaux utiles pour le front
-    total_alignments = sum(r["alignments_count"] for r in align_rows)
-    total_clusters = sum(r["clusters_count"] for r in cluster_rows)
+    row = db.execute(
+        sql,
+        {
+            "trio_is_null": trio_key is None,
+            "trio_key": trio_key,
+            "current_triangles": current["triangles_count"],
+            "current_cluster_id": current["cluster_id"],
+        },
+    ).mappings().first()
 
     return {
-        "alignments_by_status": list(align_rows),
-        "clusters_by_trio_sorted": list(cluster_rows),
-        "totals": {"alignments": total_alignments, "clusters": total_clusters},
+        "current_cluster_id": cluster_id,
+        "next_cluster_id": row["cluster_id"] if row else None,
+        "trio": trio,
     }
