@@ -11,10 +11,12 @@ from .auth import get_current_user_dep
 
 
 from .db import get_db
+from .alignments_page import router as alignments_router
 
 app = FastAPI(title="Cluster visu (POC)")
 
 app.include_router(auth_router)
+app.include_router(alignments_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -367,6 +369,27 @@ GROUP BY p.passage_id, p.text_id, t.title, t.filename, t.first_publication_date,
         raise HTTPException(status_code=404, detail="passage_id not found")
     return dict(row)
 
+@app.get("/alignments/{alignment_id}/annotations/history")
+def alignment_annotations_history(alignment_id: int, db: Session = Depends(get_db)):
+    sql = text("""
+SELECT
+  a.annotation_id,
+  a.alignment_id,
+  a.user_id,
+  u.email,
+  a.status,
+  a.comment,
+  a.annotation_metadata,
+  a.created_at,
+  a.updated_at
+FROM public.annotations a
+JOIN public.users u ON u.user_id = a.user_id
+WHERE a.alignment_id = :alignment_id
+ORDER BY a.created_at DESC, a.updated_at DESC, a.annotation_id DESC
+    """)
+    rows = db.execute(sql, {"alignment_id": alignment_id}).mappings().all()
+    return {"alignment_id": alignment_id, "items": list(rows)}
+    
 @app.get("/alignments/{alignment_id}/annotations/latest")
 def alignment_annotations_latest(alignment_id: int, db: Session = Depends(get_db)):
     sql = text("""
@@ -673,4 +696,83 @@ WHERE cluster_id = :cid
         "saved": {"status": status, "comment": data.comment},
         "n_alignments_annotated": n_inserted,
         "cluster_meta_updated": True,
+    }
+
+@app.get("/clusters/trio_summary")
+def clusters_trio_summary(db: Session = Depends(get_db)):
+    sql = text("""
+        SELECT
+          COALESCE(trio_sorted, 'UNREVIEWED-UNREVIEWED-UNREVIEWED') AS trio_sorted,
+          COUNT(*)::int AS nb_clusters
+        FROM cluster_meta
+        GROUP BY trio_sorted
+        ORDER BY nb_clusters DESC, trio_sorted ASC
+    """)
+    rows = db.execute(sql).mappings().all()
+    return {"items": list(rows)}
+
+@app.get("/clusters/{cluster_id}/next")
+def next_cluster(
+    cluster_id: int,
+    trio: Optional[str] = Query(
+        None,
+        description="Filtre trio_sorted (ordre libre). Ex: oui,non,unreviewed",
+    ),
+    db: Session = Depends(get_db),
+):
+    try:
+        trio_key = normalize_trio(trio)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Vérifie que le cluster courant existe
+    current = db.execute(
+        text("""
+            SELECT cluster_id, triangles_count, trio_sorted
+            FROM cluster_meta
+            WHERE cluster_id = :cluster_id
+        """),
+        {"cluster_id": cluster_id},
+    ).mappings().first()
+
+    if not current:
+        raise HTTPException(status_code=404, detail="cluster_id introuvable")
+
+    sql = text("""
+        WITH filtered AS (
+            SELECT
+                cluster_id,
+                triangles_count,
+                trio_sorted
+            FROM cluster_meta
+            WHERE (:trio_is_null = true OR lower(trio_sorted) = :trio_key)
+        )
+        SELECT cluster_id
+        FROM filtered
+        WHERE
+            (
+                triangles_count < :current_triangles
+                OR (
+                    triangles_count = :current_triangles
+                    AND cluster_id > :current_cluster_id
+                )
+            )
+        ORDER BY triangles_count DESC, cluster_id ASC
+        LIMIT 1
+    """)
+
+    row = db.execute(
+        sql,
+        {
+            "trio_is_null": trio_key is None,
+            "trio_key": trio_key,
+            "current_triangles": current["triangles_count"],
+            "current_cluster_id": current["cluster_id"],
+        },
+    ).mappings().first()
+
+    return {
+        "current_cluster_id": cluster_id,
+        "next_cluster_id": row["cluster_id"] if row else None,
+        "trio": trio,
     }
