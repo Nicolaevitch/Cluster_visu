@@ -432,3 +432,9 @@ margin-left:6px;
     min-width: 100%;
   }
 }
+
+.pill--oui       { background: var(--color-background-success); color: var(--color-text-success); }
+.pill--non       { background: var(--color-background-danger);  color: var(--color-text-danger);  }
+.pill--douteux   { background: var(--color-background-warning); color: var(--color-text-warning); }
+.pill--discarded { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+.pill--unreviewed{ background: var(--color-background-secondary); color: var(--color-text-secondary); }
