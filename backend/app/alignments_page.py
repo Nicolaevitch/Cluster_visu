@@ -21,6 +21,7 @@ def search_alignments(
     common_author: Optional[str] = Query(None),
     common_text: Optional[str] = Query(None),
     common_alignment_id: Optional[int] = Query(None),
+    triangle_id: Optional[int] = Query(None),
     year_start: Optional[int] = Query(None),
     year_end: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
@@ -128,6 +129,20 @@ def search_alignments(
         """)
         params["q"] = f"%{q.lower()}%"
 
+    if triangle_id is not None:
+        where_clauses.append("""
+            a.alignment_id IN (
+                SELECT unnest(ARRAY[
+                    t.alignment_ab_id,
+                    t.alignment_ac_id,
+                    t.alignment_bc_id
+                ])
+                FROM triangles t
+                WHERE t.id_triangle = :triangle_id
+            )
+        """)
+        params["triangle_id"] = triangle_id
+
     if year_start is not None:
         where_clauses.append("""
             (
@@ -228,6 +243,7 @@ def search_alignments(
             "source_alignment_id": source_alignment_id,
             "target_author": target_author,
             "target_text": target_text,
+            "triangle_id": triangle_id,
             "target_alignment_id": target_alignment_id,
             "common_author": common_author,
             "common_text": common_text,
