@@ -356,13 +356,16 @@ function buildFiltersHtml(statusFilters, showAdvanced) {
           <button type="submit" class="btn">Rechercher</button>
           <button type="button" id="resetBtn" class="btn btn-secondary">Réinitialiser</button>
         </div>
+
         <div class="align-advanced-toggle">
           <button type="button" id="toggleAdvancedBtn" class="link-btn">
             ${showAdvanced ? "▼ Masquer" : "► Afficher"} la recherche avancée
           </button>
         </div>
+
         <div id="advancedFilters" style="display:${showAdvanced ? "block" : "none"};">
           <div class="align-advanced-box">
+
             <div class="align-grid-2">
               <div class="align-filter-block source-block">
                 <h3>Source</h3>
@@ -370,6 +373,7 @@ function buildFiltersHtml(statusFilters, showAdvanced) {
                 <input type="text" id="source_text" placeholder="Livre / texte source" class="align-input" />
                 <input type="number" id="source_alignment_id" placeholder="Alignment ID" class="align-input" />
               </div>
+
               <div class="align-filter-block target-block">
                 <h3>Cible</h3>
                 <input type="text" id="target_author" placeholder="Auteur cible" class="align-input" />
@@ -377,13 +381,18 @@ function buildFiltersHtml(statusFilters, showAdvanced) {
                 <input type="number" id="target_alignment_id" placeholder="Alignment ID" class="align-input" />
               </div>
             </div>
+
             <div class="align-grid-2 common-period-row">
               <div class="align-filter-block">
                 <h3>Commun</h3>
                 <input type="text" id="common_author" placeholder="Auteur (source ou cible)" class="align-input" />
                 <input type="text" id="common_text" placeholder="Livre / texte (source ou cible)" class="align-input" />
                 <input type="number" id="common_alignment_id" placeholder="Alignment ID" class="align-input" />
+
+                <!-- ✅ NOUVEAU -->
+                <input type="number" id="triangle_id" placeholder="Triangle ID" class="align-input" />
               </div>
+
               <div class="align-filter-block">
                 <h3>Période de publication</h3>
                 <div class="align-grid-2">
@@ -392,15 +401,17 @@ function buildFiltersHtml(statusFilters, showAdvanced) {
                 </div>
               </div>
             </div>
+
             <div class="align-filter-block">
               <h3>Statut des annotations</h3>
               <div class="status-check-grid">${buildStatusCheckboxes(statusFilters)}</div>
             </div>
+
           </div>
         </div>
       </form>
     </section>
- 
+
     <section class="align-results-card">
       <div class="align-results-head">
         <h2>Résultats</h2>
@@ -416,7 +427,7 @@ function collectSearchParams(statusFilters) {
   const fields = [
     "q","source_author","source_text","source_alignment_id",
     "target_author","target_text","target_alignment_id",
-    "common_author","common_text","common_alignment_id","year_start","year_end",
+    "common_author","common_text","common_alignment_id","year_start","year_end","triangle_id",
   ];
   for (const field of fields) {
     const el = document.getElementById(field);
