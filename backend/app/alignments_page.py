@@ -169,6 +169,32 @@ def search_alignments(
     if where_clauses:
         where_sql = "WHERE " + "\nAND ".join(where_clauses)
 
+    # ── Requête COUNT (total réel sans LIMIT) ─────────────────────────────────
+    count_sql = text(f"""
+        WITH latest_annotations AS (
+            SELECT DISTINCT ON (ann.alignment_id)
+                ann.alignment_id,
+                ann.status,
+                ann.comment,
+                ann.updated_at,
+                ann.created_at,
+                ann.user_id
+            FROM annotations ann
+            ORDER BY ann.alignment_id, ann.updated_at DESC, ann.created_at DESC, ann.annotation_id DESC
+        )
+        SELECT COUNT(*) AS total
+        FROM alignments a
+        JOIN passages sp ON sp.passage_id = a.source_passage_id
+        JOIN passages tp ON tp.passage_id = a.target_passage_id
+        JOIN texts st ON st.text_id = sp.text_id
+        JOIN texts tt ON tt.text_id = tp.text_id
+        LEFT JOIN latest_annotations la ON la.alignment_id = a.alignment_id
+        {where_sql}
+    """)
+
+    total = db.execute(count_sql, params).scalar() or 0
+
+    # ── Requête principale (avec LIMIT) ───────────────────────────────────────
     sql = text(f"""
         WITH latest_annotations AS (
             SELECT DISTINCT ON (ann.alignment_id)
@@ -235,6 +261,7 @@ def search_alignments(
 
     return {
         "count": len(rows),
+        "total": total,
         "results": [dict(row._mapping) for row in rows],
         "applied_filters": {
             "q": q,
