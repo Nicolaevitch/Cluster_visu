@@ -375,7 +375,7 @@ async function renderClustersPage() {
         </div>
 
         <div style="display:flex; gap:12px;">
-          <a href="/" class="btn">Accueil</a>
+          <a href="#/home" class="btn">Accueil</a>
           <a href="#/alignments" class="btn">Alignments</a>
           <a href="#/login">Changer d’utilisateur</a>
         </div>
@@ -1094,6 +1094,12 @@ async function router() {
       return;
     }
 
+    // 1bis) Page accueil
+    if (parts[0] === "home") {
+      renderHomePage();
+      return;
+    }
+
     // 2) Si pas de token => on nettoie l'état local et on force le login
     if (!getToken()) {
       clearToken();
@@ -1131,7 +1137,7 @@ async function router() {
       <div class="wrap">
         <h1>Erreur</h1>
         <pre>${htmlEscape(e)}</pre>
-        <p><a href="/">Retour</a></p>
+        <p><a href="#/">Retour</a></p>
       </div>
     `);
   }
