@@ -101,10 +101,51 @@ function equalizePassageZones() {
   }
 }
 
+// ─── diff highlight ───────────────────────────────────────────────────────────
+
+function highlightDiff(text, otherText, type) {
+  if (!text) return "";
+
+  // Si pas d'autre texte ou lib non disponible, affichage simple
+  if (!otherText || typeof diff_match_patch === "undefined") {
+    return `<span style="font-weight:600;">${htmlEscape(text)}</span>`;
+  }
+
+  try {
+    const dmp = new diff_match_patch();
+    const diffs = dmp.diff_main(text, otherText);
+    dmp.diff_cleanupSemantic(diffs);
+
+    const color = type === "source" ? "#1a56db" : "#057a55";
+    let html = "";
+
+    for (const [op, fragment] of diffs) {
+      const escaped = htmlEscape(fragment);
+      if (op === 0) {
+        // Texte commun — gras normal
+        html += `<span style="font-weight:600;">${escaped}</span>`;
+      } else if (op === -1) {
+        // Texte unique dans CE passage — gras + couleur
+        html += `<span style="font-weight:600; color:${color};">${escaped}</span>`;
+      }
+      // op === 1 = texte uniquement dans l'autre passage → ignoré
+    }
+
+    return html;
+  } catch (e) {
+    console.error("highlightDiff error:", e);
+    return `<span style="font-weight:600;">${htmlEscape(text)}</span>`;
+  }
+}
+
 // ─── bloc passage ─────────────────────────────────────────────────────────────
 
-function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage, cardId) {
-  const content = (passage.content || "").trim();
+function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage, cardId, otherContent = "") {
+  const content = (passage.content || "")
+    .split("\n")
+    .map(line => line.trimStart())
+    .join("\n")
+    .trim();
   const before = (passage.context_before || "").trim();
   const after = (passage.context_after || "").trim();
 
@@ -112,7 +153,7 @@ function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage,
     <div style="display:flex; flex-direction:column; border:1.5px solid ${accentBorder}; border-radius:8px; overflow:hidden; min-width:0; background:#ffffff;">
 
       <!-- En-tête -->
-      <div style="background:${accentBg}; color:${accentColor}; font-size:13px; font-weight:700; padding:8px 14px; letter-spacing:0.01em; flex-shrink:0;">
+      <div style="background:${accentBg}; color:${accentColor}; font-size:13px; font-weight:700; padding:8px 14px; letter-spacing:0.01em; flex-shrink:0; text-align:left;">
         ${htmlEscape(label)}
         <span style="font-weight:400; font-size:11px; opacity:0.65; margin-left:10px;">
           passage_id ${htmlEscape(passage.passage_id ?? "—")}
@@ -125,9 +166,10 @@ function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage,
         background: #ffffff;
         border-bottom: 1px solid #e8e8e8;
         flex-shrink: 0;
+        text-align: left;
       ">
         ${before
-          ? `<div style="font-size:13px; color:#1a1a1a; line-height:1.6; font-family:monospace; white-space:pre-wrap;">${htmlEscape(before)}</div>`
+          ? `<div style="font-size:13px; color:#1a1a1a; line-height:1.6; font-family:monospace; white-space:pre-wrap; text-align:left;">${htmlEscape(before)}</div>`
           : `<span style="font-size:11px; color:#bbb; font-style:italic;">— pas de contexte avant —</span>`
         }
       </div>
@@ -138,10 +180,11 @@ function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage,
         border-bottom: 1px solid #e8e8e8;
         background: #ffffff;
         flex-shrink: 0;
+        text-align: left;
       ">
-        <div style="border-left: 4px solid ${accentBorder}; padding: 6px 12px; background:#f9f9f9;">
+        <div style="border-left: 4px solid ${accentBorder}; padding: 6px 12px; background:#f9f9f9; display:block; width:100%; box-sizing:border-box;">
           ${content
-            ? `<pre style="margin:0; font-size:14px; color:#1a1a1a; white-space:pre-wrap; font-family:monospace; line-height:1.65; font-weight:600;">${htmlEscape(content)}</pre>`
+            ? `<pre style="margin:0; font-size:14px; color:#1a1a1a; white-space:pre-wrap; font-family:monospace; line-height:1.65; text-align:left;">${highlightDiff(content, otherContent, label.toLowerCase())}</pre>`
             : `<span style="font-size:12px; color:#aaa; font-style:italic;">— passage vide —</span>`
           }
         </div>
@@ -152,9 +195,10 @@ function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage,
         padding: 10px 14px;
         background: #ffffff;
         flex: 1;
+        text-align: left;
       ">
         ${after
-          ? `<div style="font-size:13px; color:#1a1a1a; line-height:1.6; font-family:monospace; white-space:pre-wrap;">${htmlEscape(after)}</div>`
+          ? `<div style="font-size:13px; color:#1a1a1a; line-height:1.6; font-family:monospace; white-space:pre-wrap; text-align:left;">${htmlEscape(after)}</div>`
           : `<span style="font-size:11px; color:#bbb; font-style:italic;">— pas de contexte après —</span>`
         }
       </div>
@@ -313,8 +357,8 @@ function renderAlignmentCard(r) {
       </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:14px 16px; border-bottom:1px solid #e0e0e0; background:#fafafa;">
-        ${renderPassageBlock("Source", "#dbeeff", "#0c3b6e", "#5b9fd6", srcPassage, aid)}
-        ${renderPassageBlock("Cible", "#daf0e6", "#0a3d26", "#3aab72", tgtPassage, aid)}
+        ${renderPassageBlock("Source", "#dbeeff", "#0c3b6e", "#5b9fd6", srcPassage, aid, tgtPassage.content)}
+        ${renderPassageBlock("Cible", "#daf0e6", "#0a3d26", "#3aab72", tgtPassage, aid, srcPassage.content)}
       </div>
 
       <div style="padding:10px 16px 12px;">

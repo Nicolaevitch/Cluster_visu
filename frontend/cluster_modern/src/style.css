@@ -448,3 +448,13 @@ margin-left:6px;
   font-size: 0.9rem;
   line-height: 1.5;
 }
+
+[data-zone] {
+  text-align: left;
+}
+
+[data-zone] div,
+[data-zone] pre,
+[data-zone] span {
+  text-align: left;
+}
