@@ -67,81 +67,97 @@ function statusPill(status) {
   `;
 }
 
+// ─── égalisation des hauteurs ─────────────────────────────────────────────────
+
+function equalizePassageZones() {
+  const cardIds = [...new Set(
+    Array.from(document.querySelectorAll("[data-card]"))
+      .map(el => el.getAttribute("data-card"))
+  )];
+
+  for (const cardId of cardIds) {
+    for (const zone of ["before", "content", "after"]) {
+      const els = document.querySelectorAll(
+        `[data-zone="${zone}"][data-card="${cardId}"]`
+      );
+      if (els.length < 2) continue;
+
+      // Reset
+      els.forEach(el => {
+        el.style.height = "";
+        el.style.flexShrink = "";
+      });
+
+      // Mesure hauteur naturelle
+      const maxH = Math.max(...Array.from(els).map(el => el.scrollHeight));
+
+      // Applique à tous
+      els.forEach(el => {
+        el.style.height = `${maxH}px`;
+        el.style.flexShrink = "0";
+        el.style.overflowY = "auto";
+      });
+    }
+  }
+}
+
 // ─── bloc passage ─────────────────────────────────────────────────────────────
 
-function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage) {
-  const beforeId = uid();
-  const afterId = uid();
-
-  const hasBefore = (passage.context_before || "").trim().length > 0;
-  const hasAfter = (passage.context_after || "").trim().length > 0;
+function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage, cardId) {
   const content = (passage.content || "").trim();
-
-  const ctxToggle = (targetId, labelText) => `
-    <button
-      type="button"
-      onclick="(function(el){el.style.display=el.style.display==='none'?'block':'none'})(document.getElementById('${targetId}'))"
-      style="font-size:11px; color:#666; background:none; border:none; cursor:pointer; text-decoration:underline; padding:0; white-space:nowrap;"
-    >
-      ${htmlEscape(labelText)}
-    </button>
-  `;
+  const before = (passage.context_before || "").trim();
+  const after = (passage.context_after || "").trim();
 
   return `
-    <div style="display:flex; flex-direction:column; border:1.5px solid ${accentBorder}; border-radius:8px; overflow:hidden; min-width:0;">
+    <div style="display:flex; flex-direction:column; border:1.5px solid ${accentBorder}; border-radius:8px; overflow:hidden; min-width:0; background:#ffffff;">
 
-      <div style="background:${accentBg}; color:${accentColor}; font-size:12px; font-weight:600; padding:6px 12px; display:flex; justify-content:space-between; align-items:center; letter-spacing:0.03em; flex-shrink:0;">
-        <span>${htmlEscape(label)}</span>
-        <span style="font-weight:400; font-size:10px; opacity:0.75;">
+      <!-- En-tête -->
+      <div style="background:${accentBg}; color:${accentColor}; font-size:13px; font-weight:700; padding:8px 14px; letter-spacing:0.01em; flex-shrink:0;">
+        ${htmlEscape(label)}
+        <span style="font-weight:400; font-size:11px; opacity:0.65; margin-left:10px;">
           passage_id ${htmlEscape(passage.passage_id ?? "—")}
         </span>
       </div>
 
-      ${
-        hasBefore
-          ? `
-        <div style="background:#f8f8f8; border-top:1px solid #e0e0e0; padding:5px 12px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-          <span style="font-size:11px; color:#888;">Contexte avant</span>
-          ${ctxToggle(beforeId, "afficher / masquer")}
-        </div>
-        <div id="${beforeId}" style="display:none; background:#f3f3f3; border-top:1px solid #e0e0e0; padding:8px 12px; flex-shrink:0;">
-          <pre style="margin:0; font-size:11px; color:#666; white-space:pre-wrap; font-family:monospace; line-height:1.5;">${htmlEscape(
-            passage.context_before
-          )}</pre>
-        </div>
-      `
-          : ""
-      }
-
-      <div style="background:#ffffff; border-top:1px solid #e0e0e0; padding:12px; flex:1;">
-        ${
-          content
-            ? `
-          <pre style="margin:0; font-size:13px; color:#1a1a1a; white-space:pre-wrap; font-family:monospace; line-height:1.65;">${htmlEscape(
-            content
-          )}</pre>
-        `
-            : `
-          <span style="font-size:12px; color:#aaa; font-style:italic;">— passage vide —</span>
-        `
+      <!-- Contexte avant -->
+      <div data-zone="before" data-card="${cardId}" style="
+        padding: 10px 14px;
+        background: #ffffff;
+        border-bottom: 1px solid #e8e8e8;
+        flex-shrink: 0;
+      ">
+        ${before
+          ? `<div style="font-size:13px; color:#1a1a1a; line-height:1.6; font-family:monospace; white-space:pre-wrap;">${htmlEscape(before)}</div>`
+          : `<span style="font-size:11px; color:#bbb; font-style:italic;">— pas de contexte avant —</span>`
         }
       </div>
 
-      ${
-        hasAfter
-          ? `
-        <div style="background:#f8f8f8; border-top:1px solid #e0e0e0; padding:5px 12px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-          <span style="font-size:11px; color:#888;">Contexte après</span>
-          ${ctxToggle(afterId, "afficher / masquer")}
+      <!-- Passage -->
+      <div data-zone="content" data-card="${cardId}" style="
+        padding: 12px 14px;
+        border-bottom: 1px solid #e8e8e8;
+        background: #ffffff;
+        flex-shrink: 0;
+      ">
+        <div style="border-left: 4px solid ${accentBorder}; padding: 6px 12px; background:#f9f9f9;">
+          ${content
+            ? `<pre style="margin:0; font-size:14px; color:#1a1a1a; white-space:pre-wrap; font-family:monospace; line-height:1.65; font-weight:600;">${htmlEscape(content)}</pre>`
+            : `<span style="font-size:12px; color:#aaa; font-style:italic;">— passage vide —</span>`
+          }
         </div>
-        <div id="${afterId}" style="display:none; background:#f3f3f3; border-top:1px solid #e0e0e0; padding:8px 12px; flex-shrink:0;">
-          <pre style="margin:0; font-size:11px; color:#666; white-space:pre-wrap; font-family:monospace; line-height:1.5;">${htmlEscape(
-            passage.context_after
-          )}</pre>
-        </div>
-      `
-          : ""
-      }
+      </div>
+
+      <!-- Contexte après -->
+      <div data-zone="after" data-card="${cardId}" style="
+        padding: 10px 14px;
+        background: #ffffff;
+        flex: 1;
+      ">
+        ${after
+          ? `<div style="font-size:13px; color:#1a1a1a; line-height:1.6; font-family:monospace; white-space:pre-wrap;">${htmlEscape(after)}</div>`
+          : `<span style="font-size:11px; color:#bbb; font-style:italic;">— pas de contexte après —</span>`
+        }
+      </div>
 
     </div>
   `;
@@ -171,12 +187,8 @@ function renderAnnotHistory(items) {
           <tr style="border-bottom:1px solid #f0f0f0;">
             <td style="padding:5px 8px;">${htmlEscape(a.email ?? "")}</td>
             <td style="padding:5px 8px;">${statusPill(a.status)}</td>
-            <td style="padding:5px 8px; color:#666;">${htmlEscape(
-              a.comment ?? ""
-            )}</td>
-            <td style="padding:5px 8px; color:#999; white-space:nowrap;">${htmlEscape(
-              a.created_at ?? ""
-            )}</td>
+            <td style="padding:5px 8px; color:#666;">${htmlEscape(a.comment ?? "")}</td>
+            <td style="padding:5px 8px; color:#999; white-space:nowrap;">${htmlEscape(a.created_at ?? "")}</td>
           </tr>
         `
           )
@@ -189,6 +201,10 @@ function renderAnnotHistory(items) {
 // ─── annotation rapide ────────────────────────────────────────────────────────
 
 function renderQuickAnnotButtons(alignmentId, currentComment = "") {
+  if (localStorage.getItem("visitor_mode") === "true") {
+    return `<span style="font-size:12px; color:#888; font-style:italic;">Mode visiteur — annotation désactivée</span>`;
+  }
+
   return `
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       <input
@@ -230,6 +246,7 @@ function renderQuickAnnotButtons(alignmentId, currentComment = "") {
     </div>
   `;
 }
+
 // ─── carte d'un alignment ─────────────────────────────────────────────────────
 
 function renderAlignmentCard(r) {
@@ -296,20 +313,8 @@ function renderAlignmentCard(r) {
       </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:14px 16px; border-bottom:1px solid #e0e0e0; background:#fafafa;">
-        ${renderPassageBlock(
-          "Source",
-          "#dbeeff",
-          "#0c3b6e",
-          "#5b9fd6",
-          srcPassage
-        )}
-        ${renderPassageBlock(
-          "Cible",
-          "#daf0e6",
-          "#0a3d26",
-          "#3aab72",
-          tgtPassage
-        )}
+        ${renderPassageBlock("Source", "#dbeeff", "#0c3b6e", "#5b9fd6", srcPassage, aid)}
+        ${renderPassageBlock("Cible", "#daf0e6", "#0a3d26", "#3aab72", tgtPassage, aid)}
       </div>
 
       <div style="padding:10px 16px 12px;">
@@ -423,6 +428,9 @@ function renderResults(rows) {
   }
 
   div.innerHTML = rows.map((r) => renderAlignmentCard(r)).join("");
+
+  // Égalise les hauteurs des zones après rendu du DOM
+  requestAnimationFrame(() => equalizePassageZones());
 }
 
 // ─── filtres ──────────────────────────────────────────────────────────────────

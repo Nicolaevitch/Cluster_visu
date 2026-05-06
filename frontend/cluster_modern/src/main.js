@@ -16,6 +16,14 @@ function setUserEmail(e) {
   localStorage.setItem("user_email", e);
 }
 
+function isVisitor() {
+  return localStorage.getItem("visitor_mode") === "true";
+}
+function setVisitor(v) {
+  if (v) localStorage.setItem("visitor_mode", "true");
+  else localStorage.removeItem("visitor_mode");
+}
+
 import "./style.css";
 
 async function apiGet(path) {
@@ -81,20 +89,201 @@ function renderClustersTrioSummaryTable(items) {
 
 async function renderLoginPage() {
   setApp(`
-    <div class="wrap">
-      <h1>Choisir un utilisateur</h1>
-      <div id="status" class="muted">Chargement...</div>
+    <div style="
+      min-height: 100vh;
+      background: #f7f5f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Georgia', serif;
+      padding: 24px;
+      box-sizing: border-box;
+    ">
+      <div style="
+        width: 100%;
+        max-width: 480px;
+      ">
 
-      <div class="row" style="gap:12px; align-items:flex-end; flex-wrap:wrap; margin-top:10px;">
-        <div>
-          <div><b>Email</b></div>
-          <select id="userSelect" style="min-width:380px; padding:8px;"></select>
+        <!-- En-tête -->
+        <div style="margin-bottom: 40px;">
+          <div style="
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #8b7355;
+            margin-bottom: 12px;
+          ">Projet ModERN — Sorbonne Université</div>
+
+          <h1 style="
+            font-size: 2.2rem;
+            font-weight: normal;
+            color: #1a1a1a;
+            margin: 0 0 8px 0;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+          ">Cluster Visu</h1>
+
+          <p style="
+            font-size: 14px;
+            color: #666;
+            margin: 0;
+            font-style: italic;
+          ">Annotation et exploration de clusters d'alignements textuels</p>
+
+          <div style="
+            width: 48px;
+            height: 2px;
+            background: #8b7355;
+            margin-top: 20px;
+          "></div>
         </div>
-        <button id="btnLogin" style="padding:8px 12px;">Se connecter</button>
-        <button id="btnLogout" style="padding:8px 12px;">Se déconnecter</button>
-      </div>
 
-      <div id="info" style="margin-top:10px;"></div>
+        <!-- Carte principale -->
+        <div style="
+          background: #ffffff;
+          border: 1px solid #e0dbd0;
+          border-radius: 4px;
+          padding: 32px;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        ">
+
+          <div style="
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 20px;
+          ">Identification</div>
+
+          <div id="status" style="
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 20px;
+            font-style: italic;
+          ">Chargement des utilisateurs…</div>
+
+          <!-- Select -->
+          <div style="margin-bottom: 24px;">
+            <label style="
+              display: block;
+              font-size: 11px;
+              font-family: 'Courier New', monospace;
+              letter-spacing: 0.15em;
+              text-transform: uppercase;
+              color: #8b7355;
+              margin-bottom: 8px;
+            ">Compte utilisateur</label>
+            <select id="userSelect" style="
+              width: 100%;
+              padding: 10px 14px;
+              border: 1px solid #d0c9bc;
+              border-radius: 3px;
+              background: #faf9f7;
+              font-size: 14px;
+              font-family: 'Georgia', serif;
+              color: #1a1a1a;
+              appearance: none;
+              background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%228%22 viewBox=%220 0 12 8%22><path d=%22M1 1l5 5 5-5%22 stroke=%22%238b7355%22 stroke-width=%221.5%22 fill=%22none%22/></svg>');
+              background-repeat: no-repeat;
+              background-position: right 14px center;
+              cursor: pointer;
+              box-sizing: border-box;
+            "></select>
+          </div>
+
+          <!-- Boutons connexion -->
+          <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+            <button id="btnLogin" style="
+              flex: 1;
+              padding: 11px 16px;
+              background: #1a1a1a;
+              color: #ffffff;
+              border: none;
+              border-radius: 3px;
+              font-size: 13px;
+              font-family: 'Courier New', monospace;
+              letter-spacing: 0.08em;
+              cursor: pointer;
+              transition: background 0.15s;
+            "
+            onmouseover="this.style.background='#3a3a3a'"
+            onmouseout="this.style.background='#1a1a1a'"
+            >Se connecter</button>
+
+            <button id="btnLogout" style="
+              padding: 11px 16px;
+              background: transparent;
+              color: #666;
+              border: 1px solid #d0c9bc;
+              border-radius: 3px;
+              font-size: 13px;
+              font-family: 'Courier New', monospace;
+              letter-spacing: 0.08em;
+              cursor: pointer;
+              transition: border-color 0.15s, color 0.15s;
+            "
+            onmouseover="this.style.borderColor='#8b7355'; this.style.color='#8b7355'"
+            onmouseout="this.style.borderColor='#d0c9bc'; this.style.color='#666'"
+            >Déconnecter</button>
+          </div>
+
+          <!-- Séparateur -->
+          <div style="
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+          ">
+            <div style="flex:1; height:1px; background:#e8e3da;"></div>
+            <span style="font-size:11px; color:#aaa; font-family:'Courier New',monospace; letter-spacing:0.1em;">OU</span>
+            <div style="flex:1; height:1px; background:#e8e3da;"></div>
+          </div>
+
+          <!-- Bouton visiteur -->
+          <button id="btnVisitor" style="
+            width: 100%;
+            padding: 11px 16px;
+            background: transparent;
+            color: #8b7355;
+            border: 1px dashed #c4b99a;
+            border-radius: 3px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: background 0.15s;
+          "
+          onmouseover="this.style.background='#faf6f0'"
+          onmouseout="this.style.background='transparent'"
+          >Continuer en tant que visiteur</button>
+
+          <!-- Info utilisateur connecté -->
+          <div id="info" style="
+            margin-top: 20px;
+            padding: 10px 14px;
+            background: #f7f5f0;
+            border-left: 3px solid #8b7355;
+            border-radius: 0 3px 3px 0;
+            font-size: 13px;
+            color: #555;
+            display: none;
+          "></div>
+
+        </div>
+
+        <!-- Footer -->
+        <div style="
+          margin-top: 24px;
+          text-align: center;
+          font-size: 11px;
+          color: #bbb;
+          font-family: 'Courier New', monospace;
+          letter-spacing: 0.1em;
+        ">XVIIe – XVIIIe siècles · Intertextualité · POC annotation</div>
+
+      </div>
     </div>
   `);
 
@@ -102,33 +291,55 @@ async function renderLoginPage() {
   const items = data.items || [];
 
   const sel = document.querySelector("#userSelect");
-  sel.innerHTML = items.map(u => `<option value="${htmlEscape(u.email)}">${htmlEscape(u.email)}</option>`).join("");
+  sel.innerHTML = items.map(u =>
+    `<option value="${htmlEscape(u.email)}">${htmlEscape(u.email)}</option>`
+  ).join("");
 
   document.querySelector("#status").textContent =
-    `Utilisateurs disponibles: ${items.length}`;
+    `${items.length} utilisateur(s) disponible(s)`;
 
-  // affiche l'user courant
+  // Affiche l'utilisateur courant si connecté
   const current = getUserEmail();
-  document.querySelector("#info").innerHTML = current
-    ? `<b>Connecté en tant que :</b> ${htmlEscape(current)}`
-    : `<span class="muted">Pas connecté</span>`;
+  const infoEl = document.querySelector("#info");
+  if (current) {
+    infoEl.style.display = "block";
+    infoEl.innerHTML = `Connecté en tant que <b>${htmlEscape(current)}</b>`;
+  }
 
   document.querySelector("#btnLogin").addEventListener("click", async () => {
+    const btn = document.querySelector("#btnLogin");
+    btn.textContent = "Connexion…";
+    btn.disabled = true;
     try {
       const email = sel.value;
       const res = await apiPost("/api/auth/login", { email });
       setToken(res.access_token);
       setUserEmail(res.user.email);
-      window.location.hash = "#/";
+      setVisitor(false);
+      window.location.hash = "#/home";
     } catch (e) {
       document.querySelector("#status").textContent = String(e);
+      document.querySelector("#status").style.color = "#c00";
+      btn.textContent = "Se connecter";
+      btn.disabled = false;
     }
   });
 
   document.querySelector("#btnLogout").addEventListener("click", () => {
     clearToken();
     setUserEmail("");
-    document.querySelector("#info").innerHTML = `<span class="muted">Pas connecté</span>`;
+    setVisitor(false);
+    infoEl.style.display = "none";
+    infoEl.innerHTML = "";
+    document.querySelector("#status").textContent = `${items.length} utilisateur(s) disponible(s)`;
+    document.querySelector("#status").style.color = "#888";
+  });
+
+  document.querySelector("#btnVisitor").addEventListener("click", () => {
+    clearToken();
+    setUserEmail("");
+    setVisitor(true);
+    window.location.hash = "#/home";
   });
 }
 
@@ -152,6 +363,17 @@ async function apiPost(path, bodyObj) {
 const ANNOT_STATUS_OPTIONS = ["UNREVIEWED", "OUI", "NON", "DOUTEUX", "DISCARDED"];
 
 function renderAnnotEditor(alignmentId, label, items) {
+  // Mode visiteur : pas d'annotation
+  if (isVisitor()) {
+    return `
+      <div class="annot-box" data-aid="${htmlEscape(alignmentId)}" data-label="${htmlEscape(label)}">
+        <div class="annot-head">
+          <div class="muted small"><i>Mode visiteur — annotation désactivée</i></div>
+        </div>
+      </div>
+    `;
+  }
+
   const myEmail = (getUserEmail() || "").toLowerCase();
   const my = (items || []).find(x => (x.email || "").toLowerCase() === myEmail);
 
@@ -603,6 +825,14 @@ async function fetchTriangleIdsForTrio(clusterId, trioSorted) {
 }
 
 function renderPropagateBlock() {
+  if (isVisitor()) {
+    return `
+      <div style="margin-top:10px; padding:8px 12px; background:#f5f5f5; border-radius:6px;">
+        <span class="muted small"><i>Mode visiteur — propagation désactivée</i></span>
+      </div>
+    `;
+  }
+
   return `
     <details class="prop-details" open style="margin-top:10px;">
       <summary><b>can_propagate (propager une annotation)</b></summary>
@@ -1082,26 +1312,14 @@ async function router() {
   const parts = getRoute();
 
   try {
-    // 0) Accueil sans hash
-    if (parts === null) {
-      renderHomePage();
-      return;
-    }
-
-    // 1) Page "login" toujours accessible
-    if (parts[0] === "login") {
+    // 1) Login toujours accessible en premier
+    if (parts !== null && parts[0] === "login") {
       await renderLoginPage();
       return;
     }
 
-    // 1bis) Page accueil
-    if (parts[0] === "home") {
-      renderHomePage();
-      return;
-    }
-
-    // 2) Si pas de token => on nettoie l'état local et on force le login
-    if (!getToken()) {
+    // 2) Guard global : si pas de session → login, peu importe l'URL/hash
+    if (!getToken() && !isVisitor()) {
       clearToken();
       setUserEmail("");
       if (window.location.hash !== "#/login") {
@@ -1110,19 +1328,25 @@ async function router() {
       return;
     }
 
-    // 3) Page alignments
-    if (parts[0] === "alignments") {
-      await renderAlignmentsPage(document.querySelector("#app"));
+    // 3) Accueil : sans hash ou #/home
+    if (parts === null || parts[0] === "home") {
+      renderHomePage();
       return;
     }
 
-    // 4) Page principale : liste des clusters
+    // 3bis) Page principale clusters : hash = #/
     if (parts.length === 0) {
       await renderClustersPage();
       return;
     }
 
-    // 5) Page détail d’un cluster
+    // 4) Page alignments
+    if (parts[0] === "alignments") {
+      await renderAlignmentsPage(document.querySelector("#app"));
+      return;
+    }
+
+    // 5) Page détail d'un cluster
     if (parts[0] === "cluster" && parts[1]) {
       const clusterId = Number(parts[1]);
       if (!Number.isFinite(clusterId)) throw new Error("cluster_id invalide");
