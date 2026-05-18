@@ -17,8 +17,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Token très simple (pas un vrai système de sécurité, juste anti-falsification)
 JWT_SECRET = "CHANGE_ME_LONG_RANDOM_SECRET"
 JWT_ALG = "HS256"
-JWT_EXPIRE_MIN = 60 * 24 * 7  # 7 jours
-
+JWT_EXPIRE_MIN = 60 * 24 * 30  # 30 jours
 
 class LoginIn(BaseModel):
     email: str

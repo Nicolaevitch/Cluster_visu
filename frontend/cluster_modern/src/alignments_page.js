@@ -27,6 +27,14 @@ async function apiPost(path, bodyObj) {
     body: JSON.stringify(bodyObj),
   });
 
+  if (r.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("visitor_mode");
+    window.location.hash = "#/login";
+    throw new Error("Session expirée, veuillez vous reconnecter.");
+  }
+
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
   return r.json();
 }
@@ -35,6 +43,14 @@ async function apiGet(path) {
   const r = await fetch(path, {
     headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
   });
+
+  if (r.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("visitor_mode");
+    window.location.hash = "#/login";
+    throw new Error("Session expirée, veuillez vous reconnecter.");
+  }
 
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
   return r.json();
@@ -82,16 +98,13 @@ function equalizePassageZones() {
       );
       if (els.length < 2) continue;
 
-      // Reset
       els.forEach(el => {
         el.style.height = "";
         el.style.flexShrink = "";
       });
 
-      // Mesure hauteur naturelle
       const maxH = Math.max(...Array.from(els).map(el => el.scrollHeight));
 
-      // Applique à tous
       els.forEach(el => {
         el.style.height = `${maxH}px`;
         el.style.flexShrink = "0";
@@ -106,7 +119,6 @@ function equalizePassageZones() {
 function highlightDiff(text, otherText, type) {
   if (!text) return "";
 
-  // Si pas d'autre texte ou lib non disponible, affichage simple
   if (!otherText || typeof diff_match_patch === "undefined") {
     return `<span style="font-weight:600;">${htmlEscape(text)}</span>`;
   }
@@ -122,13 +134,10 @@ function highlightDiff(text, otherText, type) {
     for (const [op, fragment] of diffs) {
       const escaped = htmlEscape(fragment);
       if (op === 0) {
-        // Texte commun — gras normal
         html += `<span style="font-weight:600;">${escaped}</span>`;
       } else if (op === -1) {
-        // Texte unique dans CE passage — gras + couleur
         html += `<span style="font-weight:600; color:${color};">${escaped}</span>`;
       }
-      // op === 1 = texte uniquement dans l'autre passage → ignoré
     }
 
     return html;
@@ -152,7 +161,6 @@ function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage,
   return `
     <div style="display:flex; flex-direction:column; border:1.5px solid ${accentBorder}; border-radius:8px; overflow:hidden; min-width:0; background:#ffffff;">
 
-      <!-- En-tête -->
       <div style="background:${accentBg}; color:${accentColor}; font-size:13px; font-weight:700; padding:8px 14px; letter-spacing:0.01em; flex-shrink:0; text-align:left;">
         ${htmlEscape(label)}
         <span style="font-weight:400; font-size:11px; opacity:0.65; margin-left:10px;">
@@ -160,7 +168,6 @@ function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage,
         </span>
       </div>
 
-      <!-- Contexte avant -->
       <div data-zone="before" data-card="${cardId}" style="
         padding: 10px 14px;
         background: #ffffff;
@@ -174,7 +181,6 @@ function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage,
         }
       </div>
 
-      <!-- Passage -->
       <div data-zone="content" data-card="${cardId}" style="
         padding: 12px 14px;
         border-bottom: 1px solid #e8e8e8;
@@ -190,7 +196,6 @@ function renderPassageBlock(label, accentBg, accentColor, accentBorder, passage,
         </div>
       </div>
 
-      <!-- Contexte après -->
       <div data-zone="after" data-card="${cardId}" style="
         padding: 10px 14px;
         background: #ffffff;
@@ -473,8 +478,29 @@ function renderResults(rows) {
 
   div.innerHTML = rows.map((r) => renderAlignmentCard(r)).join("");
 
-  // Égalise les hauteurs des zones après rendu du DOM
   requestAnimationFrame(() => equalizePassageZones());
+}
+
+// ─── corpus options ───────────────────────────────────────────────────────────
+
+const CORPUS_OPTIONS = [
+  { value: "", label: "Tous les corpus" },
+  { value: "modern_0", label: "modern_0" },
+  { value: "modern_pamphlet", label: "modern_pamphlet" },
+  { value: "modern_letter", label: "modern_letter" },
+  { value: "modern_dico", label: "modern_dico" },
+  { value: "modern_press", label: "modern_press" },
+];
+
+function buildCorpusSelect(id, label) {
+  return `
+    <div>
+      <label style="font-size:12px; color:#666; display:block; margin-bottom:4px;">${label}</label>
+      <select id="${id}" class="align-input" style="min-height:unset; padding:8px 10px;">
+        ${CORPUS_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join("")}
+      </select>
+    </div>
+  `;
 }
 
 // ─── filtres ──────────────────────────────────────────────────────────────────
@@ -541,6 +567,7 @@ function buildFiltersHtml(statusFilters, showAdvanced) {
             <div class="align-grid-2">
               <div class="align-filter-block source-block">
                 <h3>Source</h3>
+                ${buildCorpusSelect("source_corpus", "Corpus source")}
                 <input type="text" id="source_author" placeholder="Auteur source" class="align-input" />
                 <input type="text" id="source_text" placeholder="Livre / texte source" class="align-input" />
                 <input type="number" id="source_alignment_id" placeholder="Alignment ID" class="align-input" />
@@ -548,6 +575,7 @@ function buildFiltersHtml(statusFilters, showAdvanced) {
 
               <div class="align-filter-block target-block">
                 <h3>Cible</h3>
+                ${buildCorpusSelect("target_corpus", "Corpus cible")}
                 <input type="text" id="target_author" placeholder="Auteur cible" class="align-input" />
                 <input type="text" id="target_text" placeholder="Livre / texte cible" class="align-input" />
                 <input type="number" id="target_alignment_id" placeholder="Alignment ID" class="align-input" />
@@ -587,14 +615,32 @@ function buildFiltersHtml(statusFilters, showAdvanced) {
     <section class="align-results-card">
       <div class="align-results-head">
         <h2>Résultats</h2>
-        <div id="resultsMeta" class="muted small"></div>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div id="resultsMeta" class="muted small"></div>
+          <button
+            type="button"
+            id="exportCsvBtn"
+            style="
+              padding:6px 14px;
+              border:1px solid #15803d;
+              border-radius:6px;
+              background:#fff;
+              color:#15803d;
+              font-size:13px;
+              font-weight:600;
+              cursor:pointer;
+              display:none;
+            ">
+            ⬇ Exporter CSV
+          </button>
+        </div>
       </div>
       <div id="results"></div>
     </section>
   `;
 }
 
-function collectSearchParams(statusFilters) {
+function collectSearchParams(statusFilters, forExport = false) {
   const params = new URLSearchParams();
 
   const fields = [
@@ -611,6 +657,8 @@ function collectSearchParams(statusFilters) {
     "year_start",
     "year_end",
     "triangle_id",
+    "source_corpus",
+    "target_corpus",
   ];
 
   for (const field of fields) {
@@ -632,9 +680,57 @@ function collectSearchParams(statusFilters) {
     params.append("status", activeStatuses[0]);
   }
 
-  params.append("limit", "50");
+  if (!forExport) {
+    params.append("limit", "50");
+  }
 
   return params;
+}
+
+// ─── export CSV ───────────────────────────────────────────────────────────────
+
+async function triggerCsvExport(statusFilters) {
+  const btn = document.getElementById("exportCsvBtn");
+  if (btn) {
+    btn.textContent = "⏳ Export en cours…";
+    btn.disabled = true;
+  }
+
+  try {
+    const params = collectSearchParams(statusFilters, true);
+    const url = `/api/alignments/export?${params.toString()}`;
+
+    const r = await fetch(url, {
+      headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+    });
+
+    if (r.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user_email");
+      localStorage.removeItem("visitor_mode");
+      window.location.hash = "#/login";
+      return;
+    }
+
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "alignments_export.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+
+  } catch (e) {
+    alert(`Erreur export : ${String(e)}`);
+  } finally {
+    if (btn) {
+      btn.textContent = "⬇ Exporter CSV";
+      btn.disabled = false;
+    }
+  }
 }
 
 // ─── page principale ──────────────────────────────────────────────────────────
@@ -665,11 +761,13 @@ export async function renderAlignmentsPage(app) {
   async function fetchAndRender() {
     const resultsDiv = document.getElementById("results");
     const metaDiv = document.getElementById("resultsMeta");
+    const exportBtn = document.getElementById("exportCsvBtn");
 
     if (!resultsDiv || !metaDiv) return;
 
     resultsDiv.innerHTML = `<p class="muted">Chargement…</p>`;
     metaDiv.textContent = "";
+    if (exportBtn) exportBtn.style.display = "none";
 
     try {
       const params = collectSearchParams(statusFilters);
@@ -694,6 +792,12 @@ export async function renderAlignmentsPage(app) {
       } else {
         metaDiv.textContent = `${total.toLocaleString("fr-FR")} résultat(s)`;
       }
+
+      // Affiche le bouton export si des résultats existent
+      if (exportBtn && total > 0) {
+        exportBtn.style.display = "inline-block";
+      }
+
     } catch (e) {
       resultsDiv.innerHTML = `<pre>${htmlEscape(String(e))}</pre>`;
     }
@@ -723,6 +827,10 @@ export async function renderAlignmentsPage(app) {
       el.addEventListener("change", (e) => {
         statusFilters[e.target.value] = e.target.checked;
       });
+    });
+
+    document.getElementById("exportCsvBtn")?.addEventListener("click", () => {
+      triggerCsvExport(statusFilters);
     });
   }
 

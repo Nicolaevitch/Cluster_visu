@@ -24,6 +24,15 @@ function setVisitor(v) {
   else localStorage.removeItem("visitor_mode");
 }
 
+function handleUnauthorized() {
+  clearToken();
+  setUserEmail("");
+  setVisitor(false);
+  if (window.location.hash !== "#/login") {
+    window.location.hash = "#/login";
+  }
+}
+
 import "./style.css";
 
 async function apiGet(path) {
@@ -31,6 +40,32 @@ async function apiGet(path) {
   const r = await fetch(path, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+
+  if (r.status === 401) {
+    handleUnauthorized();
+    throw new Error("Session expirée, veuillez vous reconnecter.");
+  }
+
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function apiPost(path, bodyObj) {
+  const token = getToken();
+  const r = await fetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(bodyObj),
+  });
+
+  if (r.status === 401) {
+    handleUnauthorized();
+    throw new Error("Session expirée, veuillez vous reconnecter.");
+  }
+
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
   return r.json();
 }
@@ -298,7 +333,6 @@ async function renderLoginPage() {
   document.querySelector("#status").textContent =
     `${items.length} utilisateur(s) disponible(s)`;
 
-  // Affiche l'utilisateur courant si connecté
   const current = getUserEmail();
   const infoEl = document.querySelector("#info");
   if (current) {
@@ -343,27 +377,12 @@ async function renderLoginPage() {
   });
 }
 
-async function apiPost(path, bodyObj) {
-  const token = getToken();
-  const r = await fetch(path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(bodyObj),
-  });
-  if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
-  return r.json();
-}
-
 // ===========================
 // ✅ Edition d'annotation
 // ===========================
 const ANNOT_STATUS_OPTIONS = ["UNREVIEWED", "OUI", "NON", "DOUTEUX", "DISCARDED"];
 
 function renderAnnotEditor(alignmentId, label, items) {
-  // Mode visiteur : pas d'annotation
   if (isVisitor()) {
     return `
       <div class="annot-box" data-aid="${htmlEscape(alignmentId)}" data-label="${htmlEscape(label)}">
@@ -420,7 +439,6 @@ function renderAnnotEditor(alignmentId, label, items) {
 }
 
 function attachAnnotEditors() {
-  // Anti double-bind : on marque les boutons déjà bindés
   const markOnce = (el, key) => {
     const k = `__bound_${key}`;
     if (el[k]) return false;
@@ -428,22 +446,18 @@ function attachAnnotEditors() {
     return true;
   };
 
-  // Toggle open/close
   document.querySelectorAll(".js-toggle-annot").forEach((btn) => {
     if (!markOnce(btn, "toggle")) return;
 
     btn.addEventListener("click", () => {
       const box = btn.closest(".annot-box");
       if (!box) return;
-
       const editor = box.querySelector(".annot-editor");
       if (!editor) return;
-
       editor.style.display = editor.style.display === "none" ? "block" : "none";
     });
   });
 
-  // Save
   document.querySelectorAll(".js-save-annot").forEach((btn) => {
     if (!markOnce(btn, "save")) return;
 
@@ -468,10 +482,8 @@ function attachAnnotEditors() {
       try {
         await apiPost(`/api/alignments/${aid}/annotate`, { status, comment });
 
-        // Refresh latest pour ré-afficher
         const latest = await fetchAlignmentAnnotationsLatest(aid);
 
-        // Rafraîchir le tableau des annotations
         const annBlock = box.closest(".align-body")?.querySelector(".ann-block");
         if (annBlock) {
           annBlock.innerHTML = `
@@ -480,23 +492,16 @@ function attachAnnotEditors() {
           `;
         }
 
-        // Remplacer l'éditeur par une version recalculée
         box.outerHTML = renderAnnotEditor(aid, label, latest.items || []);
-
-        // Re-bind sur le nouveau DOM
         attachAnnotEditors();
 
-        // Rafraîchir le bloc "Répartition des trios"
         const clusterId = getCurrentClusterIdFromDOM();
         if (clusterId) {
           try {
             const dist = await fetchClusterTrioDistribution(clusterId);
             const trioDistEl = document.querySelector("#trioDist");
-
             if (trioDistEl) {
               trioDistEl.innerHTML = renderTrioDistributionBlock(dist.items || []);
-
-              // Important : rebrancher les boutons "Voir les id triangles"
               if (typeof attachTriangleIdsButtons === "function") {
                 attachTriangleIdsButtons();
               }
@@ -531,7 +536,7 @@ function setApp(html) {
 
 function getRoute() {
   const h = window.location.hash || "";
-  if (!h) return null; // page d'accueil sans hash
+  if (!h) return null;
 
   const parts = h.replace(/^#\/?/, "").split("/").filter(Boolean);
   return parts;
@@ -544,11 +549,6 @@ function getCurrentClusterIdFromDOM() {
   return Number.isFinite(n) ? n : null;
 }
 
-
-/**
- * Menus prédéfinis (B2)
- * value = ce qu’on envoie au backend (format "a,b,c")
- */
 const TRIO_STATUSES = ["discarded", "douteux", "non", "oui", "unreviewed"];
 
 function generateTrioPresets() {
@@ -590,16 +590,18 @@ async function renderClustersPage() {
     <div class="wrap">
       <h1>Clusters</h1>
 
-      <!-- 🔐 Bandeau utilisateur + navigation -->
       <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
         <div class="muted small">
-          Connecté : <b>${htmlEscape(getUserEmail() || "—")}</b>
+          ${isVisitor()
+            ? `Mode : <b>Visiteur</b>`
+            : `Connecté : <b>${htmlEscape(getUserEmail() || "—")}</b>`
+          }
         </div>
 
         <div style="display:flex; gap:12px;">
           <a href="#/home" class="btn">Accueil</a>
           <a href="#/alignments" class="btn">Alignments</a>
-          <a href="#/login">Changer d’utilisateur</a>
+          <a href="#/login">Changer d'utilisateur</a>
         </div>
       </div>
 
@@ -615,7 +617,6 @@ async function renderClustersPage() {
     </div>
   `);
 
-  // Charger le récapitulatif global par trio
   try {
     const trioSummary = await fetchClustersTrioSummary();
     document.querySelector("#trioSummary").innerHTML =
@@ -629,21 +630,18 @@ async function renderClustersPage() {
     `;
   }
 
-  // Remplit le select
   const select = document.querySelector("#trioSelect");
   select.innerHTML = TRIO_PRESETS.map(p => {
     const sel = p.value === currentTrio ? "selected" : "";
     return `<option value="${htmlEscape(p.value)}" ${sel}>${htmlEscape(p.label)}</option>`;
   }).join("");
 
-  // Quand on change : on met l’URL à jour + on recharge la table
   select.addEventListener("change", () => {
     const v = select.value;
     setSelectedTrio(v);
     renderClustersPage();
   });
 
-  // Appel API
   const trio = getSelectedTrio();
   const url = trio
     ? `/api/clusters?limit=200&offset=0&trio=${encodeURIComponent(trio)}`
@@ -682,26 +680,6 @@ async function renderClustersPage() {
   document.querySelector("#table").innerHTML = html;
 }
 
-
-/* =========================================================
-   ✅ PAGE 2 (NEW): bandeau résumé en tableau (haut de page)
-   ========================================================= */
-
-/**
- * Attendu: endpoint BACKEND à créer (recommandé)
- * GET /api/clusters/{cluster_id}/summary
- * Réponse JSON (exemple):
- * {
- *   "cluster_id": 123,
- *   "unique_alignments_count": 456,
- *   "triangles_count": 22,
- *   "oldest_author_name": "Cicéron",
- *   "oldest_work_title": "De Oratore"
- * }
- *
- * Si l’endpoint n’existe pas encore, la page affichera "—" partout sauf cluster_id.
- */
-
 function renderClusterTopSummaryTable(summary) {
   return `
     <div class="summary-card">
@@ -713,7 +691,6 @@ function renderClusterTopSummaryTable(summary) {
             <th>Nbre de triangles</th>
             <th>Auteur plus vieux passage</th>
             <th>Oeuvre plus vieux passage</th>
-            
           </tr>
         </thead>
         <tbody>
@@ -722,10 +699,10 @@ function renderClusterTopSummaryTable(summary) {
             <td>${htmlEscape(summary?.unique_alignments_count ?? "—")}</td>
             <td>${htmlEscape(summary?.triangles_count ?? "—")}</td>
             <td>${htmlEscape(summary?.oldest_author_name ?? "—")}</td>
-                      <td>
-            <div><b>${htmlEscape(summary?.oldest_work_title ?? "—")}</b></div>
-            <div class="muted small">${htmlEscape(summary?.oldest_work_date ?? "—")}</div>
-          </td>
+            <td>
+              <div><b>${htmlEscape(summary?.oldest_work_title ?? "—")}</b></div>
+              <div class="muted small">${htmlEscape(summary?.oldest_work_date ?? "—")}</div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -733,15 +710,7 @@ function renderClusterTopSummaryTable(summary) {
   `;
 }
 
-/**
- * PAGE 2: on affiche seulement le bandeau résumé pour l'instant.
- * (Ensuite, on ajoutera d’autres composants sous le bandeau.)
- */
-
-
 function renderPassageTable(p, meta, titleLabel) {
-  // p = { passage_id, context_before, content, context_after }
-  // meta = { authors, work_title, work_date }
   return `
     <div class="passage-card">
       <div class="passage-title">
@@ -865,7 +834,6 @@ function attachPropagateCluster() {
   const btn = document.querySelector("#btnPropagate");
   if (!btn) return;
 
-  // anti double-bind
   if (btn.__bound_propagate) return;
   btn.__bound_propagate = true;
 
@@ -884,12 +852,10 @@ function attachPropagateCluster() {
     btn.disabled = true;
 
     try {
-      // ✅ 1) appel backend
       const res = await apiPost(`/api/clusters/${clusterId}/propagate`, { status, comment });
 
       if (msg) msg.textContent = `OK. ${res.n_alignments_annotated || 0} alignements annotés. Rafraîchissement...`;
 
-      // ✅ 2) refresh distribution
       try {
         const dist = await fetchClusterTrioDistribution(clusterId);
         const trioDistEl = document.querySelector("#trioDist");
@@ -900,7 +866,6 @@ function attachPropagateCluster() {
         // ne bloque pas si ça échoue
       }
 
-      // ✅ 3) refresh head (AB/AC/BC) : on récupère les alignment_ids visibles dans la page
       const aids = [...new Set(
         Array.from(document.querySelectorAll(".annot-box"))
           .map(el => Number(el.getAttribute("data-aid") || 0))
@@ -910,7 +875,6 @@ function attachPropagateCluster() {
       for (const aid of aids) {
         const latest = await fetchAlignmentAnnotationsLatest(aid);
 
-        // Update table annotations visible (ann-block)
         const box = document.querySelector(`.annot-box[data-aid="${aid}"]`);
         const label = box?.getAttribute("data-label") || "";
 
@@ -922,13 +886,11 @@ function attachPropagateCluster() {
           `;
         }
 
-        // Replace editor to show "Mon statut" mis à jour
         if (box) {
           box.outerHTML = renderAnnotEditor(aid, label, latest.items || []);
         }
       }
 
-      // re-bind des éditeurs (puisque DOM remplacé)
       attachAnnotEditors();
 
       if (msg) msg.textContent = `Propagation terminée ✅ (${res.n_alignments_annotated || 0} alignements).`;
@@ -1042,7 +1004,6 @@ function renderTrioDistributionBlock(items) {
   `;
 }
 
-
 async function fetchPassageMeta(passageId) {
   if (!passageId) return null;
   return apiGet(`/api/passages/${passageId}/meta`);
@@ -1082,12 +1043,7 @@ function renderAnnotationsTable(items) {
   `;
 }
 
-
 function buildVertexLabels(head, metaByPassageId) {
-  // On va construire une map: passage_id -> "A" | "B" | "C"
-  // Règle:
-  // A = AB.source, B = AB.target, et on déduit C par text_id.
-
   const map = new Map();
 
   const abS = head?.alignments?.ab?.source?.passage_id;
@@ -1101,7 +1057,6 @@ function buildVertexLabels(head, metaByPassageId) {
   const abS_text = metaByPassageId.get(abS)?.text_id;
   const abT_text = metaByPassageId.get(abT)?.text_id;
 
-  // On récupère tous les passages du head triangle
   const allPids = [
     head?.alignments?.ab?.source?.passage_id,
     head?.alignments?.ab?.target?.passage_id,
@@ -1111,19 +1066,16 @@ function buildVertexLabels(head, metaByPassageId) {
     head?.alignments?.bc?.target?.passage_id,
   ].filter(Boolean);
 
-  // C = le passage dont le text_id n'est ni celui de A ni celui de B
   for (const pid of allPids) {
     if (map.has(pid)) continue;
     const tid = metaByPassageId.get(pid)?.text_id;
     if (!tid) continue;
 
-    // si on connaît les text_id de A/B, on déduit C
     if (abS_text != null && abT_text != null && tid !== abS_text && tid !== abT_text) {
       map.set(pid, "C");
     }
   }
 
-  // Si jamais on n'a pas réussi à déduire C (cas bizarre), on laisse vide.
   return map;
 }
 
@@ -1138,13 +1090,15 @@ async function renderClusterDetailPage(clusterId) {
 
       <h1>Cluster ${htmlEscape(clusterId)}</h1>
 
-      <!-- 🔐 Bandeau utilisateur -->
       <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
         <div class="muted small">
-          Connecté : <b>${htmlEscape(getUserEmail() || "—")}</b>
+          ${isVisitor()
+            ? `Mode : <b>Visiteur</b>`
+            : `Connecté : <b>${htmlEscape(getUserEmail() || "—")}</b>`
+          }
         </div>
         <div>
-          <a href="#/login">Changer d’utilisateur</a>
+          <a href="#/login">Changer d'utilisateur</a>
         </div>
       </div>
 
@@ -1155,7 +1109,6 @@ async function renderClusterDetailPage(clusterId) {
     </div>
   `);
 
-  // 1) Résumé (tableau du haut)
   let summary = null;
   try {
     summary = await apiGet(`/api/clusters/${clusterId}/summary`);
@@ -1167,11 +1120,9 @@ async function renderClusterDetailPage(clusterId) {
   }
   document.querySelector("#topSummary").innerHTML = renderClusterTopSummaryTable(summary);
 
-  // 🔽 Répartition des trios + bloc can_propagate (sous le summary)
   try {
     const dist = await fetchClusterTrioDistribution(clusterId);
 
-    // garde-fou anti-doublon
     document.querySelector("#trioDist")?.remove();
     document.querySelector("#propagateBox")?.remove();
 
@@ -1191,10 +1142,8 @@ async function renderClusterDetailPage(clusterId) {
     );
   }
 
-  // 2) Charger head_triangle
   const head = await apiGet(`/api/clusters/${clusterId}/head_triangle`);
 
-  // 3) Récupérer les 6 passage_id (AB/AC/BC * source/target)
   const ids = [
     head?.alignments?.ab?.source?.passage_id,
     head?.alignments?.ab?.target?.passage_id,
@@ -1206,7 +1155,6 @@ async function renderClusterDetailPage(clusterId) {
 
   const uniqueIds = [...new Set(ids)];
 
-  // 4) Charger les metas passages en parallèle
   const metas = await Promise.all(
     uniqueIds.map(async (pid) => {
       try {
@@ -1217,23 +1165,19 @@ async function renderClusterDetailPage(clusterId) {
     })
   );
 
-  // 5) Index meta par passage_id + labels A/B/C
   const metaByPassageId = new Map(metas.map((m) => [m.passage_id, m]));
   const vertexByPassageId = buildVertexLabels(head, metaByPassageId);
 
-  // 6) Alignements AB / AC / BC
   const ab = head?.alignments?.ab;
   const ac = head?.alignments?.ac;
   const bc = head?.alignments?.bc;
 
-  // 6bis) Charger les annotations (latest par user) pour AB/AC/BC
   const [abAnn, acAnn, bcAnn] = await Promise.all([
     fetchAlignmentAnnotationsLatest(ab?.alignment_id),
     fetchAlignmentAnnotationsLatest(ac?.alignment_id),
     fetchAlignmentAnnotationsLatest(bc?.alignment_id),
   ]);
 
-  // 7) Rendu HTML
   document.querySelector("#content").innerHTML = `
     <h2 class="big-title">Triangle de tête du cluster</h2>
 
@@ -1242,13 +1186,11 @@ async function renderClusterDetailPage(clusterId) {
     ${renderAlignmentSection("bc", bc, metaByPassageId, vertexByPassageId, bcAnn?.items || [])}
   `;
 
-  // ✅ 8) Bind des boutons/inputs UNE FOIS que le DOM existe
   attachAnnotEditors();
   attachPropagateCluster();
   attachNextClusterButton(clusterId);
   attachTriangleIdsButtons();
 }
-
 
 function attachNextClusterButton(clusterId) {
   const btn = document.querySelector("#btnNextCluster");
@@ -1287,7 +1229,7 @@ function renderHomePage() {
   setApp(`
     <div class="wrap">
       <h1>Accueil</h1>
-      <p class="muted">Choisissez un mode d’exploration :</p>
+      <p class="muted">Choisissez un mode d'exploration :</p>
 
       <div class="home-grid">
         <a class="home-card" href="#/">
@@ -1318,7 +1260,7 @@ async function router() {
       return;
     }
 
-    // 2) Guard global : si pas de session → login, peu importe l'URL/hash
+    // 2) Guard global : si pas de session → login
     if (!getToken() && !isVisitor()) {
       clearToken();
       setUserEmail("");
@@ -1357,10 +1299,13 @@ async function router() {
     // 6) Fallback
     window.location.hash = "#/";
   } catch (e) {
+    // Si c'est une erreur de session expirée, le redirect est déjà fait
+    if (String(e).includes("Session expirée")) return;
+
     setApp(`
       <div class="wrap">
         <h1>Erreur</h1>
-        <pre>${htmlEscape(e)}</pre>
+        <pre>${htmlEscape(String(e))}</pre>
         <p><a href="#/">Retour</a></p>
       </div>
     `);
