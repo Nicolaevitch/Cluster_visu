@@ -16,11 +16,10 @@ CORPUS_PREFIXES = {
     "modern_letter": "modern_letter%",
     "modern_dico": "modern_dico%",
     "modern_press": "modern_press%",
-    "modern_0": None,  # handled specially: NOT LIKE any of the above
+    "modern_0": None,
 }
 
 def build_corpus_clause(param_name: str, text_alias: str, corpus_value: str, params: dict) -> str:
-    """Build a WHERE clause fragment for corpus filtering."""
     if corpus_value == "modern_0":
         params[f"{param_name}_c1"] = "modern_pamphlet%"
         params[f"{param_name}_c2"] = "modern_letter%"
@@ -43,6 +42,7 @@ def build_where_and_params(
     common_author, common_text, common_alignment_id,
     triangle_id, year_start, year_end, status,
     source_corpus, target_corpus,
+    source_content, target_content,   # ← nouveau
     limit=None
 ):
     where_clauses = []
@@ -181,6 +181,14 @@ def build_where_and_params(
         """)
         params["year_end"] = year_end
 
+    if source_content:
+        where_clauses.append("lower(sp.content) LIKE :source_content")
+        params["source_content"] = f"%{source_content.lower()}%"
+
+    if target_content:
+        where_clauses.append("lower(tp.content) LIKE :target_content")
+        params["target_content"] = f"%{target_content.lower()}%"
+
     if status:
         where_clauses.append("coalesce(la.status::text, 'UNREVIEWED') = :status")
         params["status"] = status.upper()
@@ -222,6 +230,8 @@ COMMON_SELECT = """
         sp.context_before AS source_context_before,
         sp.content AS source_content,
         sp.context_after AS source_context_after,
+        sp.start_byte AS source_start_byte,
+        sp.end_byte AS source_end_byte,
 
         st.text_id AS source_text_id,
         st.title AS source_title,
@@ -238,6 +248,8 @@ COMMON_SELECT = """
         tp.context_before AS target_context_before,
         tp.content AS target_content,
         tp.context_after AS target_context_after,
+        tp.start_byte AS target_start_byte,
+        tp.end_byte AS target_end_byte,
 
         tt.text_id AS target_text_id,
         tt.title AS target_title,
@@ -289,6 +301,8 @@ def search_alignments(
     status: Optional[str] = Query(None),
     source_corpus: Optional[str] = Query(None),
     target_corpus: Optional[str] = Query(None),
+    source_content: Optional[str] = Query(None),
+    target_content: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
@@ -298,10 +312,10 @@ def search_alignments(
         common_author, common_text, common_alignment_id,
         triangle_id, year_start, year_end, status,
         source_corpus, target_corpus,
+        source_content, target_content,
         limit=limit,
     )
 
-    # COUNT
     count_sql = text(f"""
         {COMMON_CTE}
         SELECT COUNT(*) AS total
@@ -315,7 +329,6 @@ def search_alignments(
     """)
     total = db.execute(count_sql, params).scalar() or 0
 
-    # RESULTS
     sql = text(f"""
         {COMMON_CTE}
         {COMMON_SELECT}
@@ -346,6 +359,8 @@ def search_alignments(
             "status": status,
             "source_corpus": source_corpus,
             "target_corpus": target_corpus,
+            "source_content": source_content,   # ← nouveau
+            "target_content": target_content,   # ← nouveau
             "limit": limit,
         },
     }
@@ -369,6 +384,8 @@ def export_alignments_csv(
     status: Optional[str] = Query(None),
     source_corpus: Optional[str] = Query(None),
     target_corpus: Optional[str] = Query(None),
+    source_content: Optional[str] = Query(None),
+    target_content: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     where_sql, params = build_where_and_params(
@@ -376,7 +393,7 @@ def export_alignments_csv(
         target_author, target_text, target_alignment_id,
         common_author, common_text, common_alignment_id,
         triangle_id, year_start, year_end, status,
-        source_corpus, target_corpus,
+        source_corpus, target_corpus, source_content, target_content,
         limit=None,
     )
 
@@ -388,7 +405,6 @@ def export_alignments_csv(
     """)
     rows = db.execute(sql, params).fetchall()
 
-    # ── Génération CSV ────────────────────────────────────────────────────────
     output = io.StringIO()
     writer = csv.writer(output, delimiter=",", quoting=csv.QUOTE_ALL)
 
@@ -399,6 +415,8 @@ def export_alignments_csv(
         "source_authors",
         "source_date",
         "source_passage_id",
+        "source_start_byte",
+        "source_end_byte",
         "source_context_before",
         "source_content",
         "source_context_after",
@@ -407,6 +425,8 @@ def export_alignments_csv(
         "target_authors",
         "target_date",
         "target_passage_id",
+        "target_start_byte",
+        "target_end_byte",
         "target_context_before",
         "target_content",
         "target_context_after",
@@ -423,6 +443,8 @@ def export_alignments_csv(
             r.get("source_authors", ""),
             r.get("source_date", ""),
             r.get("source_passage_id", ""),
+            r.get("source_start_byte", ""),
+            r.get("source_end_byte", ""),
             r.get("source_context_before", ""),
             r.get("source_content", ""),
             r.get("source_context_after", ""),
@@ -431,6 +453,8 @@ def export_alignments_csv(
             r.get("target_authors", ""),
             r.get("target_date", ""),
             r.get("target_passage_id", ""),
+            r.get("target_start_byte", ""),
+            r.get("target_end_byte", ""),
             r.get("target_context_before", ""),
             r.get("target_content", ""),
             r.get("target_context_after", ""),

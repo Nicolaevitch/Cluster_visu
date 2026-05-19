@@ -570,6 +570,7 @@ function buildFiltersHtml(statusFilters, showAdvanced) {
                 ${buildCorpusSelect("source_corpus", "Corpus source")}
                 <input type="text" id="source_author" placeholder="Auteur source" class="align-input" />
                 <input type="text" id="source_text" placeholder="Livre / texte source" class="align-input" />
+                <input type="text" id="source_content" placeholder="Contenu passage source" class="align-input" />
                 <input type="number" id="source_alignment_id" placeholder="Alignment ID" class="align-input" />
               </div>
 
@@ -578,6 +579,7 @@ function buildFiltersHtml(statusFilters, showAdvanced) {
                 ${buildCorpusSelect("target_corpus", "Corpus cible")}
                 <input type="text" id="target_author" placeholder="Auteur cible" class="align-input" />
                 <input type="text" id="target_text" placeholder="Livre / texte cible" class="align-input" />
+                <input type="text" id="target_content" placeholder="Contenu passage cible" class="align-input" />
                 <input type="number" id="target_alignment_id" placeholder="Alignment ID" class="align-input" />
               </div>
             </div>
@@ -647,9 +649,11 @@ function collectSearchParams(statusFilters, forExport = false) {
     "q",
     "source_author",
     "source_text",
+    "source_content", 
     "source_alignment_id",
     "target_author",
     "target_text",
+    "target_content", 
     "target_alignment_id",
     "common_author",
     "common_text",
