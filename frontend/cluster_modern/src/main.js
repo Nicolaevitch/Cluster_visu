@@ -1,4 +1,6 @@
 import { renderAlignmentsPage } from "./alignments_page.js";
+import { renderPositionalClustersPage, renderPositionalClusterDetailPage } from "./positional_clusters_page.js";
+import { renderClusterDriftPage } from "./cluster_drift_page.js";
 
 function getToken() {
   return localStorage.getItem("token") || "";
@@ -1245,6 +1247,20 @@ function renderHomePage() {
             Rechercher et annoter les alignments avec filtres avancés.
           </div>
         </a>
+
+        <a class="home-card" href="#/positional-clusters">
+          <div class="home-card-title">Cluster Positionnel</div>
+          <div class="home-card-text">
+            Explorer les clusters positionnels et annoter leurs alignements.
+          </div>
+        </a>
+
+        <a class="home-card" href="#/cluster-drift">
+          <div class="home-card-title">Réseau sémantique</div>
+          <div class="home-card-text">
+            Visualiser les clusters de drift lexical (réseau de mots par cluster).
+          </div>
+        </a>
       </div>
     </div>
   `);
@@ -1296,10 +1312,29 @@ async function router() {
       return;
     }
 
-    // 6) Fallback
+    // 6) Page liste des clusters positionnels
+    if (parts[0] === "positional-clusters") {
+      await renderPositionalClustersPage(document.querySelector("#app"));
+      return;
+    }
+
+    // 7) Page détail d'un cluster positionnel
+    if (parts[0] === "positional-cluster" && parts[1]) {
+      const clusterId = Number(parts[1]);
+      if (!Number.isFinite(clusterId)) throw new Error("cluster_id invalide");
+      await renderPositionalClusterDetailPage(document.querySelector("#app"), clusterId);
+      return;
+    }
+
+    // 7bis) Page réseau sémantique / clusters de drift
+    if (parts[0] === "cluster-drift") {
+      await renderClusterDriftPage(document.querySelector("#app"));
+      return;
+    }
+
+    // 8) Fallback
     window.location.hash = "#/";
   } catch (e) {
-    // Si c'est une erreur de session expirée, le redirect est déjà fait
     if (String(e).includes("Session expirée")) return;
 
     setApp(`

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from .auth import router as auth_router
+from .cluster_drift_page import router as cluster_drift_router
 
 from pydantic import BaseModel
 from .auth import get_current_user_dep
@@ -12,11 +13,14 @@ from .auth import get_current_user_dep
 
 from .db import get_db
 from .alignments_page import router as alignments_router
+from .positional_clusters_page import router as positional_clusters_router
 
 app = FastAPI(title="Cluster visu (POC)")
 
+app.include_router(positional_clusters_router)
 app.include_router(auth_router)
 app.include_router(alignments_router)
+app.include_router(cluster_drift_router)
 
 app.add_middleware(
     CORSMiddleware,
