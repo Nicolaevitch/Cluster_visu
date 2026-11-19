@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 import csv
 import io
 
@@ -42,7 +42,8 @@ def build_where_and_params(
     common_author, common_text, common_alignment_id,
     triangle_id, year_start, year_end, status,
     source_corpus, target_corpus,
-    source_content, target_content,   # ← nouveau
+    source_content, target_content,
+    passage_id=None,
     limit=None
 ):
     where_clauses = []
@@ -50,6 +51,10 @@ def build_where_and_params(
 
     if limit is not None:
         params["limit"] = limit
+
+    if passage_id is not None:
+        where_clauses.append("(sp.passage_id = :passage_id OR tp.passage_id = :passage_id)")
+        params["passage_id"] = passage_id
 
     if source_alignment_id is not None:
         where_clauses.append("a.alignment_id = :source_alignment_id")
@@ -189,9 +194,20 @@ def build_where_and_params(
         where_clauses.append("lower(tp.content) LIKE :target_content")
         params["target_content"] = f"%{target_content.lower()}%"
 
+    # --- Statut : accepte désormais une ou plusieurs valeurs (ex: OUI + DOUTEUX) ---
     if status:
-        where_clauses.append("coalesce(la.status::text, 'UNREVIEWED') = :status")
-        params["status"] = status.upper()
+        status_list = status if isinstance(status, list) else [status]
+        status_list = [s.upper() for s in status_list if s]
+        if status_list:
+            status_param_names = []
+            for i, s in enumerate(status_list):
+                param_name = f"status_{i}"
+                params[param_name] = s
+                status_param_names.append(f":{param_name}")
+            in_clause = ", ".join(status_param_names)
+            where_clauses.append(
+                f"coalesce(la.status::text, 'UNREVIEWED') IN ({in_clause})"
+            )
 
     if source_corpus and source_corpus in CORPUS_PREFIXES:
         clause = build_corpus_clause("source_corpus", "st", source_corpus, params)
@@ -298,11 +314,12 @@ def search_alignments(
     triangle_id: Optional[int] = Query(None),
     year_start: Optional[int] = Query(None),
     year_end: Optional[int] = Query(None),
-    status: Optional[str] = Query(None),
+    status: Optional[List[str]] = Query(None),
     source_corpus: Optional[str] = Query(None),
     target_corpus: Optional[str] = Query(None),
     source_content: Optional[str] = Query(None),
     target_content: Optional[str] = Query(None),
+    passage_id: Optional[int] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
@@ -313,6 +330,7 @@ def search_alignments(
         triangle_id, year_start, year_end, status,
         source_corpus, target_corpus,
         source_content, target_content,
+        passage_id=passage_id,
         limit=limit,
     )
 
@@ -359,8 +377,9 @@ def search_alignments(
             "status": status,
             "source_corpus": source_corpus,
             "target_corpus": target_corpus,
-            "source_content": source_content,   # ← nouveau
-            "target_content": target_content,   # ← nouveau
+            "source_content": source_content,
+            "target_content": target_content,
+            "passage_id": passage_id,
             "limit": limit,
         },
     }
@@ -381,11 +400,12 @@ def export_alignments_csv(
     triangle_id: Optional[int] = Query(None),
     year_start: Optional[int] = Query(None),
     year_end: Optional[int] = Query(None),
-    status: Optional[str] = Query(None),
+    status: Optional[List[str]] = Query(None),
     source_corpus: Optional[str] = Query(None),
     target_corpus: Optional[str] = Query(None),
     source_content: Optional[str] = Query(None),
     target_content: Optional[str] = Query(None),
+    passage_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
 ):
     where_sql, params = build_where_and_params(
@@ -394,6 +414,7 @@ def export_alignments_csv(
         common_author, common_text, common_alignment_id,
         triangle_id, year_start, year_end, status,
         source_corpus, target_corpus, source_content, target_content,
+        passage_id=passage_id,
         limit=None,
     )
 
@@ -410,28 +431,13 @@ def export_alignments_csv(
 
     writer.writerow([
         "alignment_id",
-        "source_corpus",
-        "source_title",
-        "source_authors",
-        "source_date",
-        "source_passage_id",
-        "source_start_byte",
-        "source_end_byte",
-        "source_context_before",
-        "source_content",
-        "source_context_after",
-        "target_corpus",
-        "target_title",
-        "target_authors",
-        "target_date",
-        "target_passage_id",
-        "target_start_byte",
-        "target_end_byte",
-        "target_context_before",
-        "target_content",
-        "target_context_after",
-        "latest_status",
-        "latest_comment",
+        "source_corpus", "source_title", "source_authors", "source_date",
+        "source_passage_id", "source_start_byte", "source_end_byte",
+        "source_context_before", "source_content", "source_context_after",
+        "target_corpus", "target_title", "target_authors", "target_date",
+        "target_passage_id", "target_start_byte", "target_end_byte",
+        "target_context_before", "target_content", "target_context_after",
+        "latest_status", "latest_comment",
     ])
 
     for row in rows:
@@ -439,31 +445,17 @@ def export_alignments_csv(
         writer.writerow([
             r.get("alignment_id", ""),
             derive_corpus(r.get("source_filename", "")),
-            r.get("source_title", ""),
-            r.get("source_authors", ""),
-            r.get("source_date", ""),
-            r.get("source_passage_id", ""),
-            r.get("source_start_byte", ""),
-            r.get("source_end_byte", ""),
-            r.get("source_context_before", ""),
-            r.get("source_content", ""),
-            r.get("source_context_after", ""),
+            r.get("source_title", ""), r.get("source_authors", ""), r.get("source_date", ""),
+            r.get("source_passage_id", ""), r.get("source_start_byte", ""), r.get("source_end_byte", ""),
+            r.get("source_context_before", ""), r.get("source_content", ""), r.get("source_context_after", ""),
             derive_corpus(r.get("target_filename", "")),
-            r.get("target_title", ""),
-            r.get("target_authors", ""),
-            r.get("target_date", ""),
-            r.get("target_passage_id", ""),
-            r.get("target_start_byte", ""),
-            r.get("target_end_byte", ""),
-            r.get("target_context_before", ""),
-            r.get("target_content", ""),
-            r.get("target_context_after", ""),
-            r.get("latest_status", "UNREVIEWED"),
-            r.get("latest_comment", ""),
+            r.get("target_title", ""), r.get("target_authors", ""), r.get("target_date", ""),
+            r.get("target_passage_id", ""), r.get("target_start_byte", ""), r.get("target_end_byte", ""),
+            r.get("target_context_before", ""), r.get("target_content", ""), r.get("target_context_after", ""),
+            r.get("latest_status", "UNREVIEWED"), r.get("latest_comment", ""),
         ])
 
     output.seek(0)
-
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
